@@ -11,3 +11,5 @@ createServer({
   'ops': [ 'Waxtz' ],
   'plugins': { test: {} }
 })
+
+console.log(process.env.PORT)
