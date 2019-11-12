@@ -4,7 +4,7 @@ module.exports.server = (server, settings) => {
   if (settings.public === true) {
     setInterval(() => {
       server.heartbeat()
-    }, 15000)
+    }, 45000)
   }
 
   server.heartbeat = async () => {
