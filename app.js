@@ -1,7 +1,7 @@
 const { createServer } = require('./')
 
 createServer({
-  'port': 25565,
+  'port': process.env.PORT,
   'name': 'MCScript',
   'motd': 'Server made in JavaScript!',
   'max-players': 20,
