@@ -30,7 +30,7 @@ module.exports.server = (server, options) => {
       server.log.error(`Oops! Something went wrong, ${error}`)
     })
     .on('listening', () => {
-      server.log.info(`Starting MCScript server on *:${server._server.socketServer.address().port}`)
+      server.log.info(`Started MCScript server on *:${server._server.socketServer.address().port}`)
     })
     ._server.on('connection', (client) => {
       client.on('error', error => server.emit('clientError', client, error))

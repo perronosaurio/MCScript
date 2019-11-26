@@ -38,7 +38,7 @@ module.exports.server = (server, settings) => {
 
   server.on('asap', () => {
     Object.keys(server.plugins).map((p) => {
-      server.log.info(`"${server.plugins[p].name}" loaded`)
+      server.log.info(`Plugin "${server.plugins[p].name}" loaded!`)
     })
   })
 

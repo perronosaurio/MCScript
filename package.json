@@ -4,9 +4,8 @@
   "description": "A Minecraft Classic server in JavaScript",
   "main": "index.js",
   "author": "perronosaurio",
-  "license": "MIT",
   "scripts": {
-    "start": "node app.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "js-logger": "^1.4.1",
@@ -14,7 +13,6 @@
     "minecraft-classic-protocol": "^1.3.1",
     "minecraft-classic-protocol-extension": "^1.0.3",
     "node-fetch": "^2.6.0",
-    "request": "^2.85.0",
     "requireindex": "^1.2.0",
     "vec3": "^0.1.3"
   },
