@@ -3,9 +3,8 @@ module.exports.player = (player, server) => {
     if (packet.message.split('')[0] === '/') {
       player.handleCommand(packet.message)
     } else {
-      console.log(packet)
       player.emit('chat', { message: packet.message })
-      server.broadcast(`<${player.username}> ${packet.message.replace('%', '&')}`)
+      server.broadcast(`<${player.username}> ${packet.message.replace('&', '%')}`)
       server.log.info(`<${player.username}> ${packet.message}`)
     }
   })
@@ -27,31 +26,31 @@ module.exports.server = (server) => {
   }
 
   server.color = {
-    'black': '&0',
-    'dark_blue': '&1',
-    'navy': '&1',
-    'dark_green': '&2',
-    'green': '&2',
-    'teal': '&3',
-    'dark_red': '&4',
-    'maroon': '&4',
-    'purple': '&5',
-    'dark_yellow': '&6',
-    'gold': '&6',
-    'gray': '&7',
-    'grey': '&7',
-    'silver': '&7',
-    'dark_gray': '&8',
-    'dark_grey': '&8',
-    'indigo': '&9',
-    'blue': '&9',
-    'bright_green': '&a',
-    'lime': '&a',
-    'cyan': '&b',
-    'aqua': '&b',
-    'red': '&c',
-    'pink': '&d',
-    'yellow': '&e',
-    'white': '&f'
+    'black': '%0',
+    'dark_blue': '%1',
+    'navy': '%1',
+    'dark_green': '%2',
+    'green': '%2',
+    'teal': '%3',
+    'dark_red': '%4',
+    'maroon': '%4',
+    'purple': '%5',
+    'dark_yellow': '%6',
+    'gold': '%6',
+    'gray': '%7',
+    'grey': '%7',
+    'silver': '%7',
+    'dark_gray': '%8',
+    'dark_grey': '%8',
+    'indigo': '%9',
+    'blue': '%9',
+    'bright_green': '%a',
+    'lime': '%a',
+    'cyan': '%b',
+    'aqua': '%b',
+    'red': '%c',
+    'pink': '%d',
+    'yellow': '%e',
+    'white': '%f'
   }
 }
