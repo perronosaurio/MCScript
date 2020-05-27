@@ -26,7 +26,7 @@ class MCServer extends EventEmitter {
 
     Object.keys(modules)
       .filter(moduleName => modules[moduleName].server !== undefined)
-      .forEach(moduleName => plugins[moduleName].server(this, options))
+      .forEach(moduleName => modules[moduleName].server(this, options))
 
     this._server.on('error', error => this.emit('error', error))
     this._server.on('clientError', error => this.emit('error', error))
