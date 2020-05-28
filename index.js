@@ -2,11 +2,11 @@ const { createServer } = require('./client.js')
 
 createServer({
   'port': process.env.PORT,
-  'name': 'Waxtz\'s MCScript server [Made using JavaScript]',
+  'name': 'Waxtz\'s server [Made using JavaScript]',
   'motd': 'Server made in JavaScript!',
   'max-players': 20,
   'public': true,
-  'online-mode': false,
+  'online-mode': process.env.ONLINE_MODE,
   'disable-op-command': false,
   'ops': [ 'Waxtz', 'VenkSociety' ],
   'plugins': { test: {} }
