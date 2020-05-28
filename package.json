@@ -17,7 +17,7 @@
     "vec3": "^0.1.4"
   },
   "devDependencies": {
-    "jest": "^20.0.4",
+    "jest": "^26.0.1",
     "dotenv": "^8.2.0",
     "standard": "^14.3.4"
   }
