@@ -8,11 +8,11 @@ module.exports.player = (player, server) => {
       const dx = x - player.pos.x
       const dy = y - player.pos.y
       const dz = z - player.pos.z
-      const fits_in_relative = (dx >= -128 && dx <= 127) && (dy >= -128 && dy <= 127) && (dz >= -128 && dz <= 127);
+      const fitsInRelative = (dx >= -128 && dx <= 127) && (dy >= -128 && dy <= 127) && (dz >= -128 && dz <= 127)
       
     server.players.forEach((_player) => {
       if (_player.id !== player.id) {
-        if (fits_in_relative) {
+        if (fitsInRelative) {
           _player._client.write('position_update', {
             player_id: player.id,
             change_in_x: x - player.pos.x,
