@@ -14,11 +14,11 @@
     "minecraft-classic-protocol-extension": "^1.0.3",
     "node-fetch": "^2.6.0",
     "requireindex": "^1.2.0",
-    "vec3": "^0.1.3"
+    "vec3": "^0.1.4"
   },
   "devDependencies": {
     "jest": "^26.0.1",
     "dotenv": "^8.2.0",
-    "standard": "^12.0.1"
+    "standard": "^14.3.4"
   }
 }
