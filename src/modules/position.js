@@ -53,6 +53,12 @@ module.exports.player = (player, server) => {
   }
 
   player.setPosition = (x, y, z, yaw, pitch) => {
+    player.pos.x = x
+    player.pos.y = y
+    player.pos.z = z
+    player.yaw = yaw
+    player.pitch = pitch
+
     player._client.write('player_teleport', {
       player_id: -1,
       x: player.pos.x,
@@ -61,11 +67,5 @@ module.exports.player = (player, server) => {
       yaw: player.yaw,
       pitch: player.pitch
     })
-
-    player.pos.x = x
-    player.pos.y = y
-    player.pos.z = z
-    player.yaw = yaw
-    player.pitch = pitch
   }
 }
