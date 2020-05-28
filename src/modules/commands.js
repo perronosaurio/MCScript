@@ -128,7 +128,22 @@ module.exports.player = (player, server) => {
         return `${server.color.red}Player not found`
       } else {
         player.setPosition(user.pos.x, user.pos.y, user.pos.z, user.yaw, user.pitch)
+        return `${server.color.green}Teleported to ${username}`
       }
+    }
+  })
+
+  player.commands.add({
+    base: 'model',
+    info: 'change your model',
+    usage: '/model <model>',
+    op: true,
+    action (model) {
+      player._client.write('change_model', {
+        entity_id: -1,
+        model_name: model
+      })
+      return `${server.color.green}Model changed to ${model}`
     }
   })
 
