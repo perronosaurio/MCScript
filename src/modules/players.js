@@ -3,11 +3,9 @@ module.exports.server = (server) => {
   server.entityID = 0
 
   server.getPlayer = (name) => {
-    const found = server.players.filter((pl) => {
-      return pl.name === name
-    })
+    const found = server.players.filter((pl) => pl.username === name)
 
     if (found.length > 0) return found[0]
-    return null
+    else return null
   }
 }
