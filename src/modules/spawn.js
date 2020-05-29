@@ -60,7 +60,7 @@ module.exports.player = (player, server) => {
     player.chat(`${server.color.gray}Welcome ${server.color.green}${player._client.username}${server.color.gray}!`)
     player.chat(`${server.color.gray}Server running using ${server.color.pink}Waxtz${server.color.gray}'s server software made in JS`)
 
-    server.entityID++
     server['online_players']++
+    server.entityID++
   }
 }

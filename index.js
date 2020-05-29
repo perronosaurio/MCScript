@@ -6,7 +6,7 @@ createServer({
   'motd': 'Server made in JavaScript!',
   'max-players': 20,
   'public': true,
-  'online-mode': process.env.ONLINE_MODE,
+  'online-mode': true,
   'disable-op-command': false,
   'ops': [ 'Waxtz', 'VenkSociety' ],
   'plugins': { test: {} }
