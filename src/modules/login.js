@@ -60,6 +60,12 @@ module.exports.player = (player, server, settings) => {
       server.log.info(err.stack)
     })
 
+    if (server.getPlayer(player._client.username)) {
+      return player._client.write('disconnect_player', {
+        disconnect_reason: 'You already joined the server.'
+      })
+    }
+
     player.verification_key = player._client.verification_key
     player.id = server.entityID
     player.username = player._client.username
