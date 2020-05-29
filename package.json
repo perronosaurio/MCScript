@@ -1,6 +1,6 @@
 {
   "name": "mcscript",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Minecraft Classic server in JavaScript",
   "main": "index.js",
   "author": "perronosaurio",

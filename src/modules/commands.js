@@ -137,11 +137,10 @@ module.exports.player = (player, server) => {
     base: 'model',
     info: 'change your model',
     usage: '/model <model>',
-    op: true,
     action (model) {
       player._client.write('change_model', {
         entity_id: -1,
-        model_name: model
+        model_name: model.replace(':', '|')
       })
       return `${server.color.green}Model changed to ${model}`
     }
@@ -161,9 +160,9 @@ module.exports.player = (player, server) => {
         return `${server.color.red}Player not found`
       } else {
         if (reason === undefined) {
-          player.disconnect('You have been kicked from the server')
+          user.disconnect('You have been kicked from the server')
         } else {
-          player.disconnect(reason)
+          user.disconnect(reason)
         }
       }
     }

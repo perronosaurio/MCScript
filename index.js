@@ -2,7 +2,7 @@ const { createServer } = require('./client.js')
 
 createServer({
   'port': process.env.PORT,
-  'name': 'Waxtz\'s server [Made using JavaScript]',
+  'name': 'Waxtz\'s freebuild [Made using JavaScript]',
   'motd': 'Server made in JavaScript!',
   'max-players': 20,
   'public': true,
