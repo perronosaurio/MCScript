@@ -2,8 +2,7 @@ const irc = require('irc')
 
 module.exports.server = (server) => {
   this.irc = new irc.Client('irc.snoonet.org', 'MCScript', {
-    channels: ['#snoonet'],
-    password: 'sonic',
+    channels: [],
     secure: false
   })
 
@@ -16,7 +15,7 @@ module.exports.server = (server) => {
 module.exports.player = (player, server) => {
   this.irc.join('##taigacult sonic')
 
-  const ircSay = (message) => this.irc.say('##taigacult', `[mc] ${message}`)
+  const ircSay = (message) => this.irc.say('##taigacult', `[cc] ${message}`)
   player.on('chat', ({ message }) => ircSay(`${player.username}: ${message}`))
   player.on('connected', () => ircSay(`${player.username} connected`))
   player.on('disconnected', () => ircSay(`${player.username} disconnected`))
