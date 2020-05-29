@@ -4,8 +4,14 @@ module.exports.player = (player, server) => {
       player.handleCommand(packet.message)
     } else {
       player.emit('chat', { message: packet.message })
-      server.broadcast(`<${player.username}> ${packet.message.replace('%', '&')}`)
       server.log.info(`<${player.username}> ${packet.message}`)
+
+      if (packet.message.length >= 57) {
+        server.broadcast(`<${player.username}> ${packet.message.split('%').join('&')}`)
+        server.broadcast(`> ${packet.message.split('').splice(56, packet.message.split('').length).join('')}`)
+      } else {
+        server.broadcast(`<${player.username}> ${packet.message.split('%').join('&')}`)
+      }
     }
   })
 
