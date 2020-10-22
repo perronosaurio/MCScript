@@ -20,6 +20,6 @@
   "devDependencies": {
     "jest": "^26.0.1",
     "dotenv": "^8.2.0",
-    "standard": "^14.3.4"
+    "standard": "^15.0.0"
   }
 }
