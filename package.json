@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "jest": "^26.0.1",
-    "dotenv": "^8.2.0",
+    "dotenv": "^9.0.1",
     "standard": "^14.3.4"
   }
 }
