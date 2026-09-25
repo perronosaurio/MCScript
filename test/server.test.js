@@ -1,0 +1,305 @@
+'use strict'
+
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const net = require('net')
+const crypto = require('crypto')
+
+const { startServer, sleep } = require('./helpers/server')
+const { TestClient } = require('./helpers/client')
+const packets = require('../lib/protocol/packets')
+
+async function join (server, name, opts = {}) {
+  const c = new TestClient({ port: server.port, name, ...opts })
+  await c.connect()
+  await c.waitFor('levelFinalize')
+  await c.waitFor(p => p.name === (c.cpe ? 'extAddEntity2' : 'spawnPlayer') && p.id === -1)
+  return c
+}
+
+async function command (client, cmd, wait = 150) {
+  client.mark()
+  client.chat(cmd)
+  await sleep(wait)
+  return client.received.slice(client.cursor).filter(p => p.name === 'message').map(p => p.message).join('\n')
+}
+
+test('login, CPE negotiation and map transfer', async (t) => {
+  const { server } = await startServer({ owners: ['Owner1'] })
+  t.after(() => server.stop())
+
+  const cpe = await join(server, 'Alice')
+  assert.ok(cpe.received.some(p => p.name === 'extInfo'))
+  assert.equal(cpe.level.width, 64)
+  assert.equal(cpe.level.blocks.length, 64 * 32 * 64)
+  assert.ok(cpe.received.some(p => p.name === 'levelInitializeFast'), 'FastMap used for CPE clients')
+  assert.ok(cpe.received.some(p => p.name === 'envSetColor'))
+  const player = server.findPlayerExact('Alice')
+  assert.equal(player.customBlocksLevel, 1)
+  assert.ok(player.supports('BlockDefinitionsExt', 2))
+
+  const classic = await join(server, 'Bob', { cpe: false })
+  assert.ok(!classic.received.some(p => p.name === 'extInfo'))
+  assert.ok(classic.received.some(p => p.name === 'levelInitialize'))
+  assert.equal(classic.level.blocks.length, 64 * 32 * 64)
+
+  // they see each other
+  await cpe.waitFor(p => p.name === 'extAddEntity2' && p.entityName.includes('Bob'))
+  assert.ok([...classic.entities.values()].some(e => e.entityName.includes('Alice')))
+  // tab list
+  await cpe.waitFor(p => p.name === 'extAddPlayerName' && p.playerName === 'Bob')
+
+  // duplicate login kicks the old session
+  const again = new TestClient({ port: server.port, name: 'Bob', cpe: false })
+  await again.connect()
+  await classic.waitFor('disconnect')
+  assert.match(classic.kickReason, /logged in as you/)
+  again.close()
+  cpe.close()
+})
+
+test('chat, colors and commands', async (t) => {
+  const { server } = await startServer()
+  t.after(() => server.stop())
+  const a = await join(server, 'Alice')
+  const b = await join(server, 'Bob')
+
+  a.chat('hello %cthere')
+  const msg = await b.waitForMessage(/hello/)
+  assert.match(msg.message, /Alice&f: hello &cthere/)
+
+  // long messages (LongerMessages) arrive in parts
+  a.send('message', { partial: 1, message: 'x'.repeat(64) })
+  a.send('message', { partial: 0, message: 'END' })
+  await b.waitForMessage(/END/)
+
+  assert.match(await command(a, '/nonexistent'), /Unknown command/)
+  assert.match(await command(a, '/kick Bob'), /Only .*Operator/)
+  assert.match(await command(a, '/help tp'), /\/tp <player>/)
+  assert.match(await command(a, '/msg Bob secret'), /-> .*Bob/)
+  await b.waitForMessage(/secret/)
+  a.close(); b.close()
+})
+
+test('building: permissions, broadcast and CPE block fallback', async (t) => {
+  const { server } = await startServer()
+  t.after(() => server.stop())
+  const a = await join(server, 'Alice')
+  const b = await join(server, 'Bob', { cpe: false })
+  const p = server.findPlayerExact('Alice').blockPos
+
+  // place stone next to the player
+  a.send('setBlock', { x: p.x + 1, y: p.y, z: p.z, mode: 1, block: 1 })
+  await b.waitFor(pk => pk.name === 'setBlock' && pk.x === p.x + 1 && pk.block === 1)
+  assert.equal(server.levels.main.getBlock(p.x + 1, p.y, p.z), 1)
+
+  // CPE block: classic client gets the fallback (sandstone 52 -> sand 12)
+  a.send('setBlock', { x: p.x + 2, y: p.y, z: p.z, mode: 1, block: 52 })
+  await b.waitFor(pk => pk.name === 'setBlock' && pk.x === p.x + 2)
+  assert.equal(b.blockChanges.find(pk => pk.x === p.x + 2).block, 12)
+  await a.waitFor(pk => pk.name === 'setBlock' && pk.x === p.x + 2 && pk.block === 52)
+
+  // guests can't place bedrock: the server reverts it
+  a.mark()
+  a.send('setBlock', { x: p.x + 3, y: p.y, z: p.z, mode: 1, block: 7 })
+  const revert = await a.waitFor(pk => pk.name === 'setBlock' && pk.x === p.x + 3)
+  assert.equal(revert.block, 0)
+  assert.equal(server.levels.main.getBlock(p.x + 3, p.y, p.z), 0)
+
+  // far away blocks are rejected
+  a.send('setBlock', { x: 60, y: 1, z: 60, mode: 0, block: 0 })
+  await sleep(100)
+  assert.notEqual(server.levels.main.getBlock(60, 1, 60), 0)
+
+  // slabs stack into a double slab
+  a.send('setBlock', { x: p.x, y: p.y, z: p.z + 1, mode: 1, block: 44 })
+  a.send('setBlock', { x: p.x, y: p.y + 1, z: p.z + 1, mode: 1, block: 44 })
+  await sleep(150)
+  assert.equal(server.levels.main.getBlock(p.x, p.y, p.z + 1), 43)
+  a.close(); b.close()
+})
+
+test('drawing with /cuboid uses BulkBlockUpdate and /undo reverts it', async (t) => {
+  const { server } = await startServer({ owners: ['Builder1'] })
+  t.after(() => server.stop())
+  const a = await join(server, 'Builder1')
+  const b = await join(server, 'Watcher', { cpe: false })
+  const p = server.findPlayerExact('Builder1').blockPos
+
+  a.chat('/cuboid glass')
+  await a.waitForMessage(/mark the corners/)
+  a.send('setBlock', { x: p.x, y: p.y, z: p.z, mode: 1, block: 1 })
+  a.send('setBlock', { x: p.x + 3, y: p.y + 3, z: p.z + 3, mode: 1, block: 1 })
+  await a.waitForMessage(/changed &f64/)
+  await a.waitFor('bulkBlockUpdate')
+  assert.equal(server.levels.main.getBlock(p.x + 2, p.y + 2, p.z + 2), 20)
+  // the classic client has no BulkBlockUpdate and gets individual block changes
+  await b.waitFor(pk => pk.name === 'setBlock' && pk.x === p.x + 2 && pk.y === p.y + 2 && pk.z === p.z + 2)
+  assert.equal(b.level.blocks[server.levels.main.index(p.x + 2, p.y + 2, p.z + 2)], 20)
+  assert.ok(!b.received.some(pk => pk.name === 'bulkBlockUpdate'))
+
+  await command(a, '/undo')
+  assert.equal(server.levels.main.getBlock(p.x + 2, p.y + 2, p.z + 2), 0)
+  a.close(); b.close()
+})
+
+test('multiple levels, environment and custom blocks', async (t) => {
+  const { server } = await startServer({ owners: ['Alice'] })
+  t.after(() => server.stop())
+  const a = await join(server, 'Alice')
+  const b = await join(server, 'Bob', { cpe: false })
+
+  assert.match(await command(a, '/newlvl second 32 32 48 island 7', 400), /Created level second/)
+  a.mark()
+  a.chat('/goto second')
+  const fin = await a.waitFor('levelFinalize')
+  assert.deepEqual([fin.x, fin.y, fin.z], [32, 32, 48])
+  await b.waitFor(pk => pk.name === 'despawnPlayer')
+  assert.equal(server.findPlayerExact('Alice').level.name, 'second')
+
+  a.mark()
+  a.chat('/env sky ff0000')
+  const color = await a.waitFor(pk => pk.name === 'envSetColor' && pk.variable === 0)
+  assert.deepEqual([color.r, color.g, color.b], [255, 0, 0])
+
+  a.mark()
+  a.chat('/texture https://example.com/pack.zip')
+  const url = await a.waitFor('setMapEnvUrl')
+  assert.equal(url.url, 'https://example.com/pack.zip')
+
+  a.mark()
+  a.chat('/lb preset 80 lamp')
+  const def = await a.waitFor('defineBlockExt')
+  assert.equal(def.block, 80)
+  assert.equal(def.blockName, 'Lamp')
+  assert.equal(def.fullBright, 1)
+  assert.equal(server.levels.get('second').blockDefs[80].name, 'Lamp')
+
+  // leaving the level removes its custom blocks from the client
+  a.mark()
+  a.chat('/main')
+  await a.waitFor(pk => pk.name === 'removeBlockDefinition' && pk.block === 80)
+  a.close(); b.close()
+})
+
+test('zones protect areas', async (t) => {
+  const { server } = await startServer({ owners: ['Admin1'] })
+  t.after(() => server.stop())
+  const admin = await join(server, 'Admin1')
+  const guest = await join(server, 'Guest1')
+  const p = server.findPlayerExact('Guest1').blockPos
+
+  admin.chat('/zone add safe Operator')
+  await admin.waitForMessage(/mark the corners/)
+  admin.send('setBlock', { x: p.x - 3, y: p.y - 3, z: p.z - 3, mode: 1, block: 1 })
+  admin.send('setBlock', { x: p.x + 3, y: p.y + 3, z: p.z + 3, mode: 1, block: 1 })
+  await admin.waitForMessage(/Zone &fsafe&a created/)
+
+  guest.mark()
+  guest.send('setBlock', { x: p.x + 1, y: p.y, z: p.z, mode: 1, block: 1 })
+  await guest.waitForMessage(/protected by zone/)
+  assert.equal(server.levels.main.getBlock(p.x + 1, p.y, p.z), 0)
+  admin.close(); guest.close()
+})
+
+test('bans and ranks', async (t) => {
+  const { server } = await startServer({ owners: ['Boss'] })
+  t.after(() => server.stop())
+  const boss = await join(server, 'Boss')
+  const bob = await join(server, 'Bob')
+
+  await command(boss, '/rank Bob Builder')
+  assert.equal(server.playerDB.get('bob').rank, 'Builder')
+
+  boss.chat('/ban Bob 1h griefing')
+  await bob.waitFor('disconnect')
+  assert.match(bob.kickReason, /Banned/)
+
+  const again = new TestClient({ port: server.port, name: 'Bob' })
+  await again.connect()
+  await again.waitFor('disconnect')
+  assert.match(again.kickReason, /Banned \(.*left\): griefing/)
+
+  await command(boss, '/unban Bob')
+  const ok = await join(server, 'Bob')
+  ok.close(); boss.close()
+})
+
+test('web client over WebSocket on the same port', async (t) => {
+  const { server } = await startServer()
+  t.after(() => server.stop())
+  const socket = net.connect(server.port, '127.0.0.1')
+  await new Promise(resolve => socket.once('connect', resolve))
+  const key = crypto.randomBytes(16).toString('base64')
+  socket.write(`GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ${key}\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: ClassiCube\r\n\r\n`)
+
+  let data = Buffer.alloc(0)
+  socket.on('data', d => { data = Buffer.concat([data, d]) })
+  await sleep(100)
+  const head = data.toString('latin1')
+  assert.match(head, /101 Switching Protocols/)
+  assert.match(head, new RegExp('Sec-WebSocket-Accept: ' + crypto.createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64').replace(/[+/]/g, '\\$&')))
+  data = data.subarray(data.indexOf('\r\n\r\n') + 4)
+
+  // masked binary frame with the identification packet (no CPE)
+  const ident = Buffer.alloc(131)
+  ident[0] = 0; ident[1] = 7
+  packets.writeString(ident, 2, 'WebUser'); packets.writeString(ident, 66, '')
+  const mask = crypto.randomBytes(4)
+  const masked = Buffer.from(ident.map((b, i) => b ^ mask[i & 3]))
+  socket.write(Buffer.concat([Buffer.from([0x82, 0x80 | 126, 0, 131]), mask, masked]))
+  await sleep(300)
+
+  // first frame from the server carries the server identification
+  assert.equal(data[0], 0x82)
+  const len = data[1] & 0x7f
+  const payload = len === 126 ? data.subarray(4, 4 + data.readUInt16BE(2)) : data.subarray(2, 2 + len)
+  assert.equal(payload[0], 0x00)
+  assert.ok(server.findPlayerExact('WebUser'))
+  assert.equal(server.findPlayerExact('WebUser').conn.isWebSocket, true)
+  socket.destroy()
+})
+
+test('plugins can be unloaded and reloaded cleanly', async (t) => {
+  const { server } = await startServer({ owners: ['Alice'] })
+  t.after(() => server.stop())
+  const a = await join(server, 'Alice')
+  assert.ok(server.commands.find('warp'))
+  assert.match(await command(a, '/punload warps'), /Unloaded/)
+  assert.equal(server.commands.find('warp'), null)
+  assert.match(await command(a, '/pload warps'), /Loaded plugin warps/)
+  assert.ok(server.commands.find('warp'))
+  assert.match(await command(a, '/pcreate myplugin'), /Created plugins\/myplugin/)
+  assert.match(await command(a, '/pload myplugin'), /Loaded plugin myplugin/)
+  assert.match(await command(a, '/myplugin'), /Hello from myplugin/)
+  // unloading removes its event handlers too
+  const before = [...server.events.handlers.values()].flat().length
+  await command(a, '/punload myplugin')
+  assert.ok([...server.events.handlers.values()].flat().length < before)
+  a.close()
+})
+
+test('state survives a restart', async () => {
+  const first = await startServer({ owners: ['Alice'] })
+  const bob = await join(first.server, 'Bob')
+  bob.close()
+  const a = await join(first.server, 'Alice')
+  const p = first.server.findPlayerExact('Alice').blockPos
+  a.send('setBlock', { x: p.x + 1, y: p.y, z: p.z, mode: 1, block: 45 })
+  await sleep(100)
+  await command(a, '/rank Bob Builder')
+  await command(a, '/warp create spot')
+  a.close()
+  await first.server.stop()
+
+  const second = await startServer({ owners: ['Alice'] }, first.root)
+  try {
+    assert.equal(second.server.levels.main.getBlock(p.x + 1, p.y, p.z), 45)
+    assert.equal(second.server.playerDB.get('bob').rank, 'Builder')
+    const b = await join(second.server, 'Alice')
+    assert.match(await command(b, '/warp list'), /spot/)
+    b.close()
+  } finally {
+    await second.server.stop()
+  }
+})

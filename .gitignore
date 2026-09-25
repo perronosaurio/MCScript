@@ -62,3 +62,12 @@ typings/
 levels/*.dat
 levels/level.dat
 *.dat
+
+# MCScript runtime data (created when the server runs)
+config/
+data/
+logs/
+levels/*.cw
+levels/*.tmp
+levels/backups/
+levels/deleted/

@@ -1,25 +1,28 @@
 {
   "name": "mcscript",
-  "version": "1.0.1",
-  "description": "A Minecraft Classic server in JavaScript",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "A ClassiCube (Minecraft Classic + CPE) server written in JavaScript, with plugins",
+  "main": "lib/index.js",
   "author": "perronosaurio",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "node -r dotenv/config index.js"
+    "start": "node index.js",
+    "test": "node --test --test-timeout=30000 test/*.test.js",
+    "lint": "standard lib plugins test scripts index.js",
+    "plugin:create": "node scripts/create-plugin.js"
   },
-  "dependencies": {
-    "irc": "^0.5.2",
-    "js-logger": "^1.4.1",
-    "md5.js": "^1.3.4",
-    "minecraft-classic-protocol": "^1.3.1",
-    "minecraft-classic-protocol-extension": "^1.0.3",
-    "node-fetch": "^2.6.1",
-    "requireindex": "^1.2.0",
-    "vec3": "^0.1.4"
-  },
+  "keywords": [
+    "classicube",
+    "minecraft-classic",
+    "cpe",
+    "server",
+    "mcgalaxy"
+  ],
+  "dependencies": {},
   "devDependencies": {
-    "jest": "^26.0.1",
-    "dotenv": "^8.2.0",
-    "standard": "^14.3.4"
+    "standard": "^17.1.2"
   }
 }
