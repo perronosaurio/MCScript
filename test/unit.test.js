@@ -68,7 +68,15 @@ test('server packet sizes match the ClassiCube client', () => {
     setHotbar: 3,
     setSpawnpoint: 9,
     velocityControl: 16,
-    lightingMode: 3
+    lightingMode: 3,
+    defineEffect: 36,
+    spawnEffect: 26,
+    defineModel: 116,
+    defineModelPart: 167,
+    undefineModel: 2,
+    pluginMessage: 66,
+    cinematicGui: 10,
+    toggleBlockList: 2
   }
   for (const [name, size] of Object.entries(expected)) {
     assert.equal(packets.SERVER[name].size, size, name)
@@ -96,7 +104,7 @@ test('packet sizes change with ExtendedBlocks and ExtEntityPositions', () => {
 })
 
 test('client packet sizes', () => {
-  const expected = { 0x00: 131, 0x05: 9, 0x08: 10, 0x0d: 66, 0x10: 67, 0x11: 69, 0x13: 2, 0x22: 15, 0x2b: 4 }
+  const expected = { 0x00: 131, 0x05: 9, 0x08: 10, 0x0d: 66, 0x10: 67, 0x11: 69, 0x13: 2, 0x22: 15, 0x2b: 4, 0x35: 66, 0x39: 5, 0x3a: 9 }
   for (const [id, size] of Object.entries(expected)) assert.equal(packets.CLIENT[id].size, size)
 })
 

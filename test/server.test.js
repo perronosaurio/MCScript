@@ -630,3 +630,44 @@ test('minigames: capture the flag', async (t) => {
   await op.waitForMessage(/team wins 1-0|team wins 0-1/, 3000)
   op.close(); guest.close()
 })
+
+test('CPE extras: custom models, particles, cinematic GUI, plugin messages and notify actions', async (t) => {
+  const { server } = await startServer({ owners: ['Alice'] })
+  t.after(() => server.stop())
+  const a = await join(server, 'Alice')
+  // models are defined before the level is sent
+  const def = a.received.find(p => p.name === 'defineModel' && p.modelName === 'bighead')
+  assert.ok(def)
+  assert.equal(a.received.filter(p => p.name === 'defineModelPart' && p.modelId === def.modelId).length, 6)
+  assert.ok(a.received.indexOf(def) < a.received.findIndex(p => p.name === 'levelFinalize'))
+
+  a.mark()
+  a.chat('/model spinner')
+  const cm = await a.waitFor('changeModel')
+  assert.equal(cm.model, 'spinner')
+
+  a.mark()
+  a.chat('/effect hearts')
+  const fx = await a.waitFor('defineEffect')
+  const spawn = await a.waitFor('spawnEffect')
+  assert.equal(spawn.effectId, fx.effectId)
+  assert.deepEqual([fx.r, fx.g, fx.b], [255, 80, 140])
+
+  a.mark()
+  a.chat('/cinematic on')
+  const cg = await a.waitFor('cinematicGui')
+  assert.equal(cg.hideHotbar, 1)
+  assert.ok(cg.barSize > 0)
+
+  const gotMsg = new Promise(resolve => server.events.once('pluginMessage', resolve))
+  const payload = Buffer.alloc(64); payload.write('hello plugin')
+  a.send('pluginMessage', { channel: 7, data: payload })
+  const pm = await gotMsg
+  assert.equal(pm.channel, 7)
+  assert.match(pm.data.toString(), /hello plugin/)
+
+  const gotAction = new Promise(resolve => server.events.once('notifyAction', resolve))
+  a.send('notifyAction', { action: 7, value: 1 })
+  assert.equal((await gotAction).action, 'thirdPersonChanged')
+  a.close()
+})

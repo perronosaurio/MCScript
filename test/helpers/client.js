@@ -16,7 +16,9 @@ const CLIENT_OUT = {
   extEntry: packets.CLIENT[0x11],
   customBlockSupportLevel: packets.CLIENT[0x13],
   playerClicked: packets.CLIENT[0x22],
-  twoWayPing: packets.CLIENT[0x2b]
+  twoWayPing: packets.CLIENT[0x2b],
+  pluginMessage: packets.CLIENT[0x35],
+  notifyAction: packets.CLIENT[0x39]
 }
 
 const resolve = (type, opts) => type === 'blk' ? (opts.extBlocks ? 'u16' : 'u8') : type === 'pos' ? (opts.extPos ? 'i32' : 'i16') : type
@@ -29,7 +31,7 @@ function encodeClient (name, data, opts = {}) {
   for (const [field, rawType] of def.fields) {
     const type = resolve(rawType, opts)
     const v = data[field] ?? 0
-    if (type === 'u8') { buf.writeUInt8(v & 255, o); o += 1 } else if (type === 'i8') { buf.writeInt8(v, o); o += 1 } else if (type === 'u16') { buf.writeUInt16BE(v, o); o += 2 } else if (type === 'i16') { buf.writeInt16BE(v, o); o += 2 } else if (type === 'i32') { buf.writeInt32BE(v, o); o += 4 } else if (type === 'str') { packets.writeString(buf, o, v, true); o += 64 }
+    if (type === 'u8') { buf.writeUInt8(v & 255, o); o += 1 } else if (type === 'i8') { buf.writeInt8(v, o); o += 1 } else if (type === 'u16') { buf.writeUInt16BE(v, o); o += 2 } else if (type === 'i16') { buf.writeInt16BE(v, o); o += 2 } else if (type === 'i32') { buf.writeInt32BE(v, o); o += 4 } else if (type === 'str') { packets.writeString(buf, o, v, true); o += 64 } else if (type.startsWith('bytes:')) { const n = Number(type.slice(6)); if (v) Buffer.from(v).copy(buf, o); o += n }
   }
   return buf
 }
@@ -50,7 +52,7 @@ function decodeServer (def, buf, opts = {}) {
   let o = 1
   for (const [field, rawType] of def.fields) {
     const type = resolve(rawType, opts)
-    if (type === 'u8') { out[field] = buf.readUInt8(o); o += 1 } else if (type === 'i8') { out[field] = buf.readInt8(o); o += 1 } else if (type === 'u16') { out[field] = buf.readUInt16BE(o); o += 2 } else if (type === 'i16') { out[field] = buf.readInt16BE(o); o += 2 } else if (type === 'i32') { out[field] = buf.readInt32BE(o); o += 4 } else if (type === 'str') { out[field] = packets.readString(buf, o); o += 64 } else if (type.startsWith('xbytes:')) {
+    if (type === 'u8') { out[field] = buf.readUInt8(o); o += 1 } else if (type === 'i8') { out[field] = buf.readInt8(o); o += 1 } else if (type === 'u16') { out[field] = buf.readUInt16BE(o); o += 2 } else if (type === 'i16') { out[field] = buf.readInt16BE(o); o += 2 } else if (type === 'i32') { out[field] = buf.readInt32BE(o); o += 4 } else if (type === 'f32') { out[field] = buf.readFloatBE(o); o += 4 } else if (type === 'str') { out[field] = packets.readString(buf, o); o += 64 } else if (type.startsWith('xbytes:')) {
       const n = opts.extBlocks ? Number(type.slice(7)) : 0; out[field] = Buffer.from(buf.subarray(o, o + n)); o += n
     } else {
       const n = Number(type.slice(6)); out[field] = Buffer.from(buf.subarray(o, o + n)); o += n
