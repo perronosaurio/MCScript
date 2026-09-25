@@ -361,3 +361,69 @@ test('SQLite storage keeps players across restarts', { skip: (() => { try { requ
     await second.server.stop()
   }
 })
+
+test('plugins can be installed from a URL and from an npm package', async (t) => {
+  const http = require('http')
+  const fs = require('fs')
+  const os = require('os')
+  const path = require('path')
+  const code = "module.exports = { name: 'fromweb', version: '0.1.0', load (ctx) { ctx.command({ name: 'webhello', run (p) { p.message('hello from the web') } }) } }"
+  const web = http.createServer((req, res) => { res.end(code) })
+  await new Promise(resolve => web.listen(0, '127.0.0.1', resolve))
+  const { server, root } = await startServer({ owners: ['Alice'] })
+  t.after(() => { web.close(); return server.stop() })
+  const a = await join(server, 'Alice')
+
+  assert.match(await command(a, `/pinstall http://127.0.0.1:${web.address().port}/whatever.js`, 400), /Installed and loaded fromweb/)
+  assert.match(await command(a, '/webhello'), /hello from the web/)
+  assert.ok(fs.existsSync(path.join(root, 'plugins', 'fromweb.js')))
+  assert.match(await command(a, '/puninstall fromweb'), /Removed fromweb/)
+  assert.equal(server.commands.find('webhello'), null)
+  assert.ok(!fs.existsSync(path.join(root, 'plugins', 'fromweb.js')))
+
+  // a local npm package (file: spec works offline)
+  const pkg = fs.mkdtempSync(path.join(os.tmpdir(), 'mcscript-pkg-'))
+  fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'mcscript-plugin-demo', version: '1.2.3', main: 'main.js' }))
+  fs.writeFileSync(path.join(pkg, 'main.js'), "module.exports = { name: 'demo', version: '1.2.3', load (ctx) { ctx.command({ name: 'demohi', run (p) { p.message('npm plugin works') } }) } }")
+  a.mark()
+  a.chat(`/pinstall npm:file:${pkg}`)
+  await a.waitForMessage(/Installed and loaded demo v1.2.3/, 60000)
+  assert.match(await command(a, '/demohi'), /npm plugin works/)
+  assert.ok(fs.existsSync(path.join(root, 'plugins', 'demo', 'node_modules', 'mcscript-plugin-demo')))
+  a.close()
+})
+
+test('physics: sand falls, water flows, sponges and water + lava', async (t) => {
+  const { server } = await startServer({ owners: ['Alice'] })
+  t.after(() => server.stop())
+  const level = server.levels.main // flat: ground at y 0..15, air above
+  const set = (x, y, z, b) => { level.setBlock(x, y, z, b); server.plugins.get('physics').module.api.schedule(level, x, y, z) }
+
+  set(10, 25, 10, 12) // sand in the air
+  await sleep(400)
+  assert.equal(level.getBlock(10, 25, 10), 0)
+  assert.equal(level.getBlock(10, 16, 10), 12)
+
+  set(20, 16, 20, 8) // active water on the ground
+  await sleep(700)
+  assert.equal(level.getBlock(21, 16, 20), 8)
+  assert.equal(level.getBlock(19, 16, 20), 8)
+
+  set(40, 16, 40, 19) // a sponge stops water nearby
+  set(43, 16, 40, 8)
+  await sleep(900)
+  assert.notEqual(level.getBlock(42, 16, 40), 8)
+
+  set(30, 16, 30, 10) // lava next to flowing water turns into stone
+  set(32, 16, 30, 8)
+  await sleep(1500)
+  assert.ok(level.getBlock(30, 16, 30) === 1 || level.getBlock(31, 16, 30) === 1)
+
+  // /physics 0 stops everything
+  const a = await join(server, 'Alice')
+  assert.match(await command(a, '/physics 0'), /Physics in main set to &f0/)
+  set(50, 25, 50, 12)
+  await sleep(300)
+  assert.equal(level.getBlock(50, 25, 50), 12)
+  a.close()
+})

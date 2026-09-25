@@ -71,3 +71,4 @@ levels/*.cw
 levels/*.tmp
 levels/backups/
 levels/deleted/
+plugins/.removed/

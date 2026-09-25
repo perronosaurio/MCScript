@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "node index.js",
-    "test": "node --test --test-timeout=30000 test/*.test.js",
+    "test": "node --test --test-timeout=180000 test/*.test.js",
     "lint": "standard lib plugins test scripts index.js",
     "plugin:create": "node scripts/create-plugin.js"
   },
