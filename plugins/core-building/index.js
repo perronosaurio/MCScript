@@ -3,6 +3,9 @@
 // Drawing and editing tools: /cuboid, /replace, /line, /sphere, /fill, /copy, /paste, /undo, /redo, /paint, /about...
 // Other plugins (like zones) can filter draw operations through the 'drawOperation' event.
 
+const path = require('path')
+const { BlockLog } = require('./block-log')
+
 const MAX_UNDO_OPS = 30
 const HISTORY_PER_LEVEL = 300000
 
@@ -18,6 +21,21 @@ module.exports = {
     const redo = new Map()
     const history = new Map() // level name -> Map(index -> { name, time, from, to })
     const clipboards = new Map()
+    // every change is also written to disk, so history and /undoplayer survive restarts
+    const log = new BlockLog(path.join(ctx.dataDir, 'history'))
+    ctx.setInterval(() => log.flush(), 5000)
+    ctx.onUnload(() => log.flush())
+
+    const loadHistory = (level) => {
+      const map = new Map()
+      for (const r of log.recent(level.name, HISTORY_PER_LEVEL)) {
+        map.delete(r.index)
+        map.set(r.index, { name: r.name, time: r.time, from: r.from, to: r.to })
+      }
+      history.set(level.name, map)
+    }
+    for (const level of server.levels.loaded.values()) loadHistory(level)
+    ctx.on('levelLoad', ({ level }) => loadHistory(level))
 
     // ---------------------------------------------------------------- helpers
 
@@ -69,6 +87,7 @@ module.exports = {
       let map = history.get(level.name)
       if (!map) history.set(level.name, (map = new Map()))
       const time = Date.now()
+      log.append(level.name, name, changes, time)
       for (const [index, from, to] of changes) {
         map.delete(index)
         map.set(index, { name, time, from, to })
@@ -95,7 +114,7 @@ module.exports = {
 
     // Applies [[x, y, z, block], ...] as a player, with permission checks
     function apply (player, level, changes, opName) {
-      if (!player.isConsole && player.permission < server.ranks.permissionOf(level.buildRank)) {
+      if (!level.canBuild(player)) {
         throw new CommandError(`You are not allowed to build in ${level.name}.`)
       }
       checkVolume(player, changes.length)
@@ -426,6 +445,48 @@ module.exports = {
           total += changes.length
         }
         player.message(`&eUndone &f${total}&e block changes. &7(/redo to restore)`)
+      }
+    })
+
+    ctx.command({
+      name: 'undoplayer',
+      aliases: ['up', 'undoothers'],
+      category: 'building',
+      usage: '/undoplayer <player> [time, default 30m] [level]',
+      description: 'Undoes a player\'s changes in a time span (also after restarts). Undoing others needs Operator.',
+      run (player, args, { usage }) {
+        if (!args[0]) return usage()
+        const target = args[0]
+        const ms = args[1] ? ctx.text.parseDuration(args[1]) : 30 * 60000
+        if (!ms) return usage()
+        const level = args[2] ? server.levels.get(args[2]) : player.level
+        if (!level) throw new CommandError('That level is not loaded.')
+        const self = !player.isConsole && target.toLowerCase() === player.name.toLowerCase()
+        if (!self) {
+          if (player.permission < server.ranks.permissionOf('Operator')) throw new CommandError('Only operators can undo other players.')
+          const record = server.playerDB.get(target)
+          if (record && !player.isConsole && (server.ranks.get(record.rank) || server.ranks.default).permission >= player.permission) {
+            throw new CommandError(`You can't undo ${target}'s changes, their rank is not lower than yours.`)
+          }
+        }
+        // newest first: remember the newest "to" and the oldest "from" of each block
+        const blocks = new Map()
+        for (const r of log.search(level.name, { name: target, since: Date.now() - ms })) {
+          const b = blocks.get(r.index)
+          if (b) b.from = r.from
+          else blocks.set(r.index, { from: r.from, to: r.to })
+        }
+        const changes = []
+        const undone = []
+        for (const [index, b] of blocks) {
+          if (level.getAt(index) !== b.to) continue // someone changed it afterwards
+          const { x, y, z } = level.unpack(index)
+          changes.push([x, y, z, b.from])
+          undone.push([index, b.to, b.from])
+        }
+        level.setBlocks(changes)
+        recordHistory(level, `${player.name} (undo)`, undone)
+        player.message(`&eUndid &f${changes.length}&e block changes by ${target} in the last ${ctx.text.formatDuration(ms)}.`)
       }
     })
 

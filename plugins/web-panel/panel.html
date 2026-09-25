@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCScript · Panel</title>
+<style>
+  :root {
+    --bg: #15171a; --panel: #1d2024; --line: #2c3036; --ink: #e6e8eb; --muted: #8b939c;
+    --accent: #5fb04a; --warn: #e0a33a; --err: #e05a4f; --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 18px; }
+  header h1 span { color: var(--accent); }
+  .stat { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .stat b { color: var(--ink); font-weight: 600; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; padding: 16px 20px; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+  section h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .col { display: grid; gap: 16px; align-content: start; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  .scroll { overflow-x: auto; }
+  .pill { display: inline-block; padding: 0 6px; border-radius: 10px; font-size: 11px; background: var(--line); color: var(--muted); }
+  .pill.on { background: #24401d; color: #9fe08a; }
+  button { background: var(--line); color: var(--ink); border: 0; border-radius: 5px; padding: 3px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+  button:hover { background: #3a4048; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #log { height: 420px; overflow-y: auto; font: 12.5px/1.45 var(--mono); background: #0f1113; border-radius: 6px; padding: 8px 10px; }
+  #log div { white-space: pre-wrap; word-break: break-word; }
+  #log .t { color: #5c646d; margin-right: 6px; }
+  #log .warn { color: var(--warn); } #log .error { color: var(--err); }
+  form { display: flex; gap: 8px; margin-top: 10px; }
+  input[type=text], input[type=password] { flex: 1; min-width: 0; background: #0f1113; color: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 7px 9px; font: 13px var(--mono); }
+  form button { padding: 7px 14px; background: var(--accent); color: #0d1a09; font-weight: 600; }
+  #login { max-width: 380px; margin: 12vh auto; }
+  #login p { color: var(--muted); }
+  .err { color: var(--err); min-height: 1.4em; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<section id="login" hidden>
+  <h2>MCScript · Panel</h2>
+  <p>Pega el token de <code>config/plugins/web-panel.json</code>.</p>
+  <form id="loginForm"><input id="token" type="password" placeholder="Token" autocomplete="off"><button>Entrar</button></form>
+  <div class="err" id="loginErr"></div>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <h1><span>■</span> <span id="name" style="color:inherit"></span></h1>
+    <div class="stat">Jugadores <b id="sPlayers">–</b></div>
+    <div class="stat">Mapas <b id="sLevels">–</b></div>
+    <div class="stat">Memoria <b id="sMem">–</b> MB</div>
+    <div class="stat">Activo <b id="sUp">–</b></div>
+    <div class="stat">MCScript <b id="sVer">–</b></div>
+    <button id="logout" style="margin-left:auto">Salir</button>
+  </header>
+  <main>
+    <div class="col">
+      <section>
+        <h2>Jugadores conectados</h2>
+        <div class="scroll"><table><thead><tr><th>Nombre</th><th>Rango</th><th>Mapa</th><th class="num">Ping</th><th>Cliente</th><th></th></tr></thead><tbody id="players"></tbody></table></div>
+      </section>
+      <section>
+        <h2>Mapas</h2>
+        <div class="scroll"><table><thead><tr><th>Nombre</th><th>Estado</th><th>Tamaño</th><th class="num">Jugadores</th><th></th></tr></thead><tbody id="levels"></tbody></table></div>
+      </section>
+      <section>
+        <h2>Plugins</h2>
+        <div id="plugins" class="stat"></div>
+      </section>
+    </div>
+    <section>
+      <h2>Registro y consola</h2>
+      <div id="log" aria-live="polite"></div>
+      <form id="cmdForm"><input id="cmd" type="text" placeholder="/comando o mensaje para el chat" autocomplete="off"><button>Enviar</button></form>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+  // ClassiCube colors, the darkest ones lightened so they stay readable on the dark background
+  const COLORS = { 0: '#8a8f96', 1: '#6f7dff', 2: '#3fbf3f', 3: '#3fbfbf', 4: '#e2574c', 5: '#cf5fcf', 6: '#d9b43c', 7: '#bfbfbf', 8: '#8a8f96', 9: '#6b6bff', a: '#58e858', b: '#58e8e8', c: '#ff5a5a', d: '#ff6aff', e: '#f0f060', f: '#ffffff' }
+  let token = ''
+  try { token = sessionStorage.getItem('mcscript-token') || '' } catch (e) {}
+  let since = 0
+  const $ = id => document.getElementById(id)
+
+  // "&cRed &fwhite" -> DOM nodes with colors (text only, never HTML)
+  function colored (text) {
+    const frag = document.createDocumentFragment()
+    let color = null
+    for (const part of String(text).split(/(&[0-9a-f])/i)) {
+      const m = part.match(/^&([0-9a-f])$/i)
+      if (m) { color = COLORS[m[1].toLowerCase()]; continue }
+      if (!part) continue
+      const span = document.createElement('span')
+      span.textContent = part
+      if (color) span.style.color = color
+      frag.appendChild(span)
+    }
+    return frag
+  }
+
+  async function api (path, opts = {}) {
+    const res = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token } })
+    if (res.status === 401) { showLogin('Token incorrecto.'); throw new Error('unauthorized') }
+    return res.json()
+  }
+
+  function showLogin (msg) {
+    $('app').hidden = true; $('login').hidden = false; $('loginErr').textContent = msg || ''
+  }
+
+  function fmtTime (ms) {
+    const s = Math.floor(ms / 1000); const h = Math.floor(s / 3600); const m = Math.floor(s % 3600 / 60)
+    return h ? `${h} h ${m} min` : `${m} min`
+  }
+
+  function row (cells) {
+    const tr = document.createElement('tr')
+    for (const c of cells) {
+      const td = document.createElement('td')
+      if (c && c.num) td.className = 'num'
+      if (c instanceof Node) td.appendChild(c)
+      else if (c && c.node) td.appendChild(c.node)
+      else td.textContent = c && c.text !== undefined ? c.text : (c ?? '')
+      tr.appendChild(td)
+    }
+    return tr
+  }
+
+  function button (label, command) {
+    const b = document.createElement('button')
+    b.textContent = label
+    b.type = 'button'
+    b.addEventListener('click', () => send(command))
+    return b
+  }
+
+  async function refresh () {
+    const [st, players, levels] = await Promise.all([api('/api/status'), api('/api/players'), api('/api/levels')])
+    $('name').replaceChildren(colored(st.name))
+    $('sPlayers').textContent = `${st.players}/${st.maxPlayers}`
+    $('sLevels').textContent = st.levels
+    $('sMem').textContent = st.memoryMB
+    $('sUp').textContent = fmtTime(st.uptime)
+    $('sVer').textContent = st.version
+    $('plugins').textContent = st.plugins.map(p => p.name + (p.version ? ' ' + p.version : '')).join(' · ')
+
+    const pt = $('players'); pt.replaceChildren()
+    if (!players.length) pt.appendChild(row([{ text: 'Nadie conectado' }]))
+    for (const p of players) {
+      const name = document.createElement('span'); name.appendChild(colored(p.color + p.name))
+      if (p.afk) { const s = document.createElement('span'); s.className = 'pill'; s.textContent = 'AFK'; name.append(' ', s) }
+      const actions = document.createElement('span')
+      actions.append(button('Kick', `/kick ${p.name}`))
+      pt.appendChild(row([name, p.rank, p.level, { text: p.ping ?? '–', num: true }, p.client + (p.web ? ' (web)' : ''), actions]))
+    }
+
+    const lt = $('levels'); lt.replaceChildren()
+    for (const l of levels) {
+      const state = document.createElement('span'); state.className = 'pill' + (l.loaded ? ' on' : ''); state.textContent = l.main ? 'principal' : l.loaded ? 'cargado' : 'en disco'
+      const actions = document.createElement('span')
+      if (l.loaded && !l.main) actions.append(button('Descargar', `/unload ${l.name}`))
+      if (!l.loaded) actions.append(button('Cargar', `/load ${l.name}`))
+      if (l.loaded) actions.append(' ', button('Guardar', `/save ${l.name}`))
+      lt.appendChild(row([l.name, state, l.size ? l.size.join('×') : '', { text: l.loaded ? l.players : '', num: true }, actions]))
+    }
+  }
+
+  async function pollLogs () {
+    const lines = await api('/api/logs?since=' + since)
+    const box = $('log')
+    const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 20
+    for (const l of lines) {
+      since = l.id
+      const div = document.createElement('div')
+      div.className = l.level
+      const t = document.createElement('span'); t.className = 't'; t.textContent = new Date(l.time).toTimeString().slice(0, 8)
+      div.append(t, colored(l.message))
+      box.appendChild(div)
+    }
+    while (box.children.length > 800) box.firstChild.remove()
+    if (stick) box.scrollTop = box.scrollHeight
+  }
+
+  async function send (command) {
+    const out = await api('/api/command', { method: 'POST', body: JSON.stringify({ command }) })
+    for (const line of out.output || []) {
+      const div = document.createElement('div'); div.append(colored('&7» ' + line)); $('log').appendChild(div)
+    }
+    $('log').scrollTop = $('log').scrollHeight
+    refresh().catch(() => {})
+  }
+
+  async function start () {
+    try {
+      await refresh()
+    } catch (e) { if (e.message !== 'unauthorized') showLogin('No se pudo conectar con el servidor.'); return }
+    $('login').hidden = true; $('app').hidden = false
+    pollLogs()
+    setInterval(() => pollLogs().catch(() => {}), 2000)
+    setInterval(() => refresh().catch(() => {}), 5000)
+  }
+
+  $('loginForm').addEventListener('submit', e => {
+    e.preventDefault()
+    token = $('token').value.trim()
+    try { sessionStorage.setItem('mcscript-token', token) } catch (err) {}
+    start()
+  })
+  $('cmdForm').addEventListener('submit', e => {
+    e.preventDefault()
+    const v = $('cmd').value.trim()
+    if (!v) return
+    $('cmd').value = ''
+    send(v).catch(() => {})
+  })
+  $('logout').addEventListener('click', () => { try { sessionStorage.removeItem('mcscript-token') } catch (e) {} location.reload() })
+
+  if (token) start(); else showLogin()
+})()
+</script>
+</body>
+</html>

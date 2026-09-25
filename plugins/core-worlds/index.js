@@ -252,6 +252,7 @@ module.exports = {
         player.message(`&eLevel &f${level.name}&e: ${level.width}x${level.height}x${level.length} (${level.volume.toLocaleString()} blocks)`)
         player.message(`&7  Created ${new Date(level.createdAt).toISOString().slice(0, 10)}${level.createdBy ? ' by ' + level.createdBy : ''}${level.generator ? ', generator ' + level.generator : ''}`)
         player.message(`&7  Build: ${rankName(level.buildRank)}&7+, visit: ${rankName(level.visitRank)}&7+, players here: &f${level.players.length}`)
+        if (level.owners.length) player.message(`&7  Owners: &f${level.owners.join(', ')}`)
         player.message(`&7  MOTD: &f${level.motd}`)
         const e = level.env
         player.message(`&7  Texture: &f${e.texture || 'default'}&7, weather: &f${['sun', 'rain', 'snow'][e.weather]}`)
@@ -266,9 +267,9 @@ module.exports = {
       aliases: ['mapset', 'levelset'],
       category: 'world',
       rank: 'Operator',
-      usage: '/map <motd|buildrank|visitrank> <value>',
+      usage: '/map <motd|buildrank|visitrank|owner> <value>',
       description: 'Changes settings of your current level',
-      help: ['motd: text shown while loading; can contain hack flags like -hax +fly -noclip. "ignore" = server motd', 'buildrank / visitrank: minimum rank to build in / go to this level'],
+      help: ['motd: text shown while loading; can contain hack flags like -hax +fly -noclip. "ignore" = server motd', 'buildrank / visitrank: minimum rank to build in / go to this level', 'owner add|remove <player>: owners can always build here'],
       inGame: true,
       run (player, args, { usage }) {
         const level = player.level
@@ -285,6 +286,13 @@ module.exports = {
           level.buildRank = rank.name
           for (const p of level.players) p.sendBlockPermissions()
           player.message(`&a${rank.color}${rank.name}&a+ can now build in ${level.name}.`)
+        } else if (option === 'owner' || option === 'owners') {
+          const [action, who] = value.toLowerCase().split(/\s+/)
+          if (!['add', 'remove'].includes(action) || !who) throw new CommandError('Usage: /map owner <add|remove> <player>')
+          if (action === 'add' && !level.owners.includes(who)) level.owners.push(who)
+          if (action === 'remove') level.owners = level.owners.filter(o => o !== who)
+          for (const p of level.players) p.sendBlockPermissions()
+          player.message(`&aOwners of ${level.name}: &f${level.owners.join(', ') || 'none'}`)
         } else if (option === 'visitrank' || option === 'pervisit') {
           const rank = server.ranks.get(value)
           if (!rank) throw new CommandError('Unknown rank.')

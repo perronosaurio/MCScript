@@ -427,3 +427,94 @@ test('physics: sand falls, water flows, sponges and water + lava', async (t) => 
   assert.equal(level.getBlock(50, 25, 50), 12)
   a.close()
 })
+
+test('block history is kept on disk: /about and /undoplayer work after a restart', async () => {
+  const first = await startServer({ owners: ['Admin'] })
+  let p, before
+  try {
+    const g = await join(first.server, 'Griefer')
+    p = first.server.findPlayerExact('Griefer').blockPos
+    const level = first.server.levels.main
+    before = level.getBlock(p.x + 1, p.y - 1, p.z)
+    g.send('setBlock', { x: p.x + 1, y: p.y - 1, z: p.z, mode: 0, block: 0 })
+    g.send('setBlock', { x: p.x + 1, y: p.y, z: p.z, mode: 1, block: 45 })
+    await sleep(200)
+    assert.equal(level.getBlock(p.x + 1, p.y, p.z), 45)
+    g.close()
+  } finally {
+    await first.server.stop()
+  }
+
+  const second = await startServer({ owners: ['Admin'] }, first.root)
+  try {
+    const lvl = second.server.levels.main
+    const admin = await join(second.server, 'Admin')
+    admin.chat('/about')
+    await admin.waitForMessage(/mark the position/)
+    admin.send('setBlock', { x: p.x + 1, y: p.y, z: p.z, mode: 0, block: 0 })
+    await admin.waitForMessage(/Last changed by &fGriefer/)
+    assert.match(await command(admin, '/undoplayer Griefer 1h', 300), /Undid &f2&e block changes by Griefer/)
+    assert.equal(lvl.getBlock(p.x + 1, p.y, p.z), 0)
+    assert.equal(lvl.getBlock(p.x + 1, p.y - 1, p.z), before)
+    admin.close()
+  } finally {
+    await second.server.stop()
+  }
+})
+
+test('economy: pay, shop ranks and personal levels', async (t) => {
+  const { server } = await startServer({ owners: ['Boss'] })
+  t.after(() => server.stop())
+  const boss = await join(server, 'Boss')
+  const ann = await join(server, 'Ann')
+  const eco = server.plugins.get('economy').module.api
+
+  assert.match(await command(ann, '/money'), /Ann has &a50 coins/)
+  assert.match(await command(ann, '/pay Boss 20'), /You paid &a20 coins/)
+  assert.equal(eco.balance('boss'), 70)
+  assert.match(await command(ann, '/pay Boss 1000'), /You only have/)
+  assert.match(await command(ann, '/buy rank Builder'), /That costs 200 coins/)
+
+  await command(boss, '/eco give Ann 2000')
+  assert.match(await command(ann, '/buy rank Builder', 300), /bought the .*Builder/)
+  assert.equal(server.playerDB.get('ann').rank, 'Builder')
+
+  ann.mark()
+  ann.chat('/buy level')
+  await ann.waitForMessage(/You bought the level/, 5000)
+  const level = server.levels.get('Ann')
+  assert.deepEqual(level.owners, ['ann'])
+  // only the owner builds there
+  assert.equal(level.canBuild(server.findPlayerExact('Ann')), true)
+  const other = await join(server, 'Visitor')
+  assert.equal(level.canBuild(server.findPlayerExact('Visitor')), false)
+  other.close(); ann.close(); boss.close()
+})
+
+test('web panel: token auth, status, players and commands', async (t) => {
+  const { server } = await startServer({ owners: ['Alice'] }, null, { 'web-panel': { enabled: true, host: '127.0.0.1', port: 0, token: 'secret-token' } })
+  t.after(() => server.stop())
+  const api = server.plugins.get('web-panel').module.api
+  for (let i = 0; i < 20 && !api.port; i++) await sleep(50)
+  const base = `http://127.0.0.1:${api.port}`
+  const a = await join(server, 'Alice')
+
+  const page = await fetch(base + '/')
+  assert.equal(page.status, 200)
+  assert.match(await page.text(), /MCScript · Panel/)
+  assert.equal((await fetch(base + '/api/status')).status, 401)
+  assert.equal((await fetch(base + '/api/status', { headers: { Authorization: 'Bearer wrong-token!' } })).status, 401)
+
+  const auth = { Authorization: 'Bearer secret-token', 'Content-Type': 'application/json' }
+  const status = await (await fetch(base + '/api/status', { headers: auth })).json()
+  assert.equal(status.players, 1)
+  const players = await (await fetch(base + '/api/players', { headers: auth })).json()
+  assert.equal(players[0].name, 'Alice')
+  const out = await (await fetch(base + '/api/command', { method: 'POST', headers: auth, body: JSON.stringify({ command: '/levels' }) })).json()
+  assert.match(out.output.join('\n'), /main/)
+  await fetch(base + '/api/command', { method: 'POST', headers: auth, body: JSON.stringify({ command: 'hello from the panel' }) })
+  await a.waitForMessage(/hello from the panel/)
+  const logs = await (await fetch(base + '/api/logs', { headers: auth })).json()
+  assert.ok(logs.some(l => /Alice/.test(l.message)))
+  a.close()
+})

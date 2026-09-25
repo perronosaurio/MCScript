@@ -9,13 +9,17 @@ const { loadConfig } = require('../../lib/config')
 const REPO = path.join(__dirname, '..', '..')
 
 // Starts a server in a temporary folder with a copy of the bundled plugins.
-async function startServer (overrides = {}, root = null) {
+async function startServer (overrides = {}, root = null, pluginConfigs = {}) {
   if (!root) {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'mcscript-test-'))
     fs.cpSync(path.join(REPO, 'plugins'), path.join(root, 'plugins'), {
       recursive: true,
       filter: src => !src.endsWith('test.js')
     })
+  }
+  for (const [name, cfg] of Object.entries(pluginConfigs)) {
+    fs.mkdirSync(path.join(root, 'config', 'plugins'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'config', 'plugins', `${name}.json`), JSON.stringify(cfg))
   }
   const config = loadConfig({
     root,
