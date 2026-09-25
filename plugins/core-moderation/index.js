@@ -237,6 +237,23 @@ module.exports = {
       ev.cancel(`Banned${left}${record.ban.reason ? ': ' + record.ban.reason : ''}`)
     }, { priority: 'critical' })
 
+    ctx.command({
+      name: 'sudo',
+      aliases: ['runas'],
+      category: 'moderation',
+      rank: 'Owner',
+      usage: '/sudo <player> <command or message>',
+      description: 'Makes a player run a command (or say something)',
+      run (player, args, { usage }) {
+        if (args.length < 2) return usage()
+        const target = find(player, args[0])
+        if (!player.isConsole && target.permission >= player.permission && target !== player) throw new CommandError('You can only use /sudo on lower ranks.')
+        const line = args.slice(1).join(' ')
+        if (line.startsWith('/')) server.commands.execute(target, line)
+        else target.chat(line)
+      }
+    })
+
     // ---------------------------------------------------------------- mute / freeze / vanish
 
     ctx.command({

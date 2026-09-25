@@ -121,7 +121,7 @@ module.exports = {
         }
         const type = (args[0] || 'flat').toLowerCase()
         const seed = args[1] !== undefined ? parseInt(args[1], 10) || hashSeed(args[1]) : undefined
-        for (const v of [width, height, length]) if (v < 16 || v > 1024) throw new CommandError('Each dimension must be between 16 and 1024.')
+        for (const v of [width, height, length]) if (v < 16 || v > 8192) throw new CommandError('Each dimension must be between 16 and 8192 (more than 1023 needs an up to date client).')
         if (width * height * length > config.maxVolume) throw new CommandError(`Level too big (max ${config.maxVolume} blocks).`)
         player.message(`&eGenerating ${type} level &f${name}&e (${width}x${height}x${length})...`)
         const level = levels.create(name, { width, height, length, type, seed, creator: player.isConsole ? null : player.name })

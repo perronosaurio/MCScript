@@ -77,6 +77,24 @@ test('server packet sizes match the ClassiCube client', () => {
   assert.deepEqual(Object.keys(expected).sort(), Object.keys(packets.SERVER).sort())
 })
 
+// With ExtendedBlocks / ExtEntityPositions the ClassiCube client grows these packets (Protocol.c, CPE_ExtEntry)
+test('packet sizes change with ExtendedBlocks and ExtEntityPositions', () => {
+  const eb = { extBlocks: true }
+  const grow = { setBlock: 1, holdThis: 1, setBlockPermission: 1, defineBlock: 1, removeBlockDefinition: 1, defineBlockExt: 1, setInventoryOrder: 2, bulkBlockUpdate: 64, setHotbar: 1 }
+  for (const [name, extra] of Object.entries(grow)) {
+    assert.equal(packets.sizeOf(packets.SERVER[name], eb), packets.SERVER[name].size + extra, name)
+  }
+  const ep = { extPos: true }
+  for (const name of ['teleport', 'spawnPlayer', 'extAddEntity2', 'setSpawnpoint']) {
+    assert.equal(packets.sizeOf(packets.SERVER[name], ep), packets.SERVER[name].size + 6, name)
+  }
+  // client -> server
+  assert.equal(packets.sizeOf(packets.CLIENT[0x05], eb), 10)
+  assert.equal(packets.sizeOf(packets.CLIENT[0x08], { extBlocks: true, extPos: true }), 17)
+  const buf = packets.encode('setBlock', { x: 1, y: 2, z: 3, block: 700 }, eb)
+  assert.equal(buf.readUInt16BE(7), 700)
+})
+
 test('client packet sizes', () => {
   const expected = { 0x00: 131, 0x05: 9, 0x08: 10, 0x0d: 66, 0x10: 67, 0x11: 69, 0x13: 2, 0x22: 15, 0x2b: 4 }
   for (const [id, size] of Object.entries(expected)) assert.equal(packets.CLIENT[id].size, size)
@@ -163,4 +181,25 @@ test('ranks', () => {
   assert.equal(ranks.permissionOf(null), 0)
   assert.equal(ranks.next('Guest').name, 'Builder')
   assert.equal(ranks.highest.name, 'Owner')
+})
+
+test('SQLite player database', { skip: (() => { try { require('node:sqlite'); return false } catch (e) { return true } })() }, () => {
+  const fs = require('fs'); const os = require('os'); const path = require('path')
+  const { SqlitePlayerDB } = require('../lib/storage/player-db')
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcscript-sqlite-'))
+  fs.writeFileSync(path.join(dir, 'players.json'), JSON.stringify({ old: { name: 'Old', rank: 'Builder', ips: [] } }))
+  let db = new SqlitePlayerDB(path.join(dir, 'players.db'), { importFrom: path.join(dir, 'players.json') })
+  assert.equal(db.get('OLD').rank, 'Builder') // imported from players.json
+  const r = db.getOrCreate('Steve_1')
+  r.blocksPlaced = 42
+  r.ips.push('1.2.3.4')
+  assert.equal(db.find('stev').name, 'Steve_1')
+  assert.equal(db.find('st%'), null)
+  db.close()
+  db = new SqlitePlayerDB(path.join(dir, 'players.db'))
+  assert.equal(db.get('steve_1').blocksPlaced, 42)
+  assert.deepEqual(db.get('steve_1').ips, ['1.2.3.4'])
+  assert.equal(db.all().length, 2)
+  db.close()
+  fs.rmSync(dir, { recursive: true, force: true })
 })

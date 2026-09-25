@@ -98,3 +98,21 @@ test('generators produce valid levels', () => {
   generators.terrain.generate(b, { seed: 99 })
   assert.deepEqual(a.blocks, b.blocks)
 })
+
+test('block ids above 255 are stored in the upper array and saved as BlockArray2', () => {
+  const level = new Level({ name: 'big', width: 8, height: 8, length: 8 })
+  assert.equal(level.upper, null)
+  level.setBlockRaw(1, 1, 1, 700)
+  level.setBlockRaw(2, 2, 2, 45)
+  assert.equal(level.getBlock(1, 1, 1), 700)
+  assert.equal(level.getBlock(2, 2, 2), 45)
+  const copy = Level.fromCW(level.toCW(), 'big')
+  assert.equal(copy.getBlock(1, 1, 1), 700)
+  const table = new Uint16Array(768).map((_, i) => i)
+  const { lower, upper } = copy.serializeForClient(table)
+  const i = copy.index(1, 1, 1)
+  assert.equal(lower[4 + i] | (upper[4 + i] << 8), 700)
+  // no upper array needed when nothing is above 255
+  table[700] = 1
+  assert.equal(copy.serializeForClient(table).upper, null)
+})

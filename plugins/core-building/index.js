@@ -114,7 +114,7 @@ module.exports = {
       const record = []
       for (const [x, y, z, block] of ev.changes) {
         const index = level.index(x, y, z)
-        record.push([index, level.blocks[index], block])
+        record.push([index, level.getAt(index), block])
       }
       level.setBlocks(ev.changes)
       pushUndo(player, level, record)
@@ -209,7 +209,7 @@ module.exports = {
         const to = blockArg(player, args[1])
         const changes = []
         for (let i = 0; i < level.volume; i++) {
-          if (level.blocks[i] !== from) continue
+          if (level.getAt(i) !== from) continue
           const { x, y, z } = level.unpack(i)
           changes.push([x, y, z, to])
         }
@@ -312,7 +312,7 @@ module.exports = {
             const nx = x + dx; const ny = y + dy; const nz = z + dz
             if (!level.inBounds(nx, ny, nz)) continue
             const ni = level.index(nx, ny, nz)
-            if (seen.has(ni) || level.blocks[ni] !== target) continue
+            if (seen.has(ni) || level.getAt(ni) !== target) continue
             seen.add(ni)
             queue.push(ni)
           }
@@ -413,7 +413,7 @@ module.exports = {
           const undone = []
           for (let i = op.changes.length - 1; i >= 0; i--) {
             const [index, from, to] = op.changes[i]
-            if (level.blocks[index] !== to) continue // changed again later by someone else
+            if (level.getAt(index) !== to) continue // changed again later by someone else
             const { x, y, z } = level.unpack(index)
             changes.push([x, y, z, from])
             undone.push([index, to, from])
@@ -441,7 +441,7 @@ module.exports = {
         if (!op) throw new CommandError('Nothing to redo.')
         const changes = []
         for (const [index, from, to] of op.changes) {
-          if (op.level.blocks[index] !== from) continue
+          if (op.level.getAt(index) !== from) continue
           const { x, y, z } = op.level.unpack(index)
           changes.push([x, y, z, to])
         }

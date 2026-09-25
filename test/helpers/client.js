@@ -19,14 +19,17 @@ const CLIENT_OUT = {
   twoWayPing: packets.CLIENT[0x2b]
 }
 
-function encodeClient (name, data) {
+const resolve = (type, opts) => type === 'blk' ? (opts.extBlocks ? 'u16' : 'u8') : type === 'pos' ? (opts.extPos ? 'i32' : 'i16') : type
+
+function encodeClient (name, data, opts = {}) {
   const def = CLIENT_OUT[name]
-  const buf = Buffer.alloc(def.size)
+  const buf = Buffer.alloc(packets.sizeOf(def, opts))
   buf[0] = def.id
   let o = 1
-  for (const [field, type] of def.fields) {
+  for (const [field, rawType] of def.fields) {
+    const type = resolve(rawType, opts)
     const v = data[field] ?? 0
-    if (type === 'u8') { buf.writeUInt8(v & 255, o); o += 1 } else if (type === 'i8') { buf.writeInt8(v, o); o += 1 } else if (type === 'i16') { buf.writeInt16BE(v, o); o += 2 } else if (type === 'i32') { buf.writeInt32BE(v, o); o += 4 } else if (type === 'str') { packets.writeString(buf, o, v, true); o += 64 }
+    if (type === 'u8') { buf.writeUInt8(v & 255, o); o += 1 } else if (type === 'i8') { buf.writeInt8(v, o); o += 1 } else if (type === 'u16') { buf.writeUInt16BE(v, o); o += 2 } else if (type === 'i16') { buf.writeInt16BE(v, o); o += 2 } else if (type === 'i32') { buf.writeInt32BE(v, o); o += 4 } else if (type === 'str') { packets.writeString(buf, o, v, true); o += 64 }
   }
   return buf
 }
@@ -42,11 +45,14 @@ function serverDefs (fastMap) {
   return byId
 }
 
-function decodeServer (def, buf) {
+function decodeServer (def, buf, opts = {}) {
   const out = { name: def.name }
   let o = 1
-  for (const [field, type] of def.fields) {
-    if (type === 'u8') { out[field] = buf.readUInt8(o); o += 1 } else if (type === 'i8') { out[field] = buf.readInt8(o); o += 1 } else if (type === 'i16') { out[field] = buf.readInt16BE(o); o += 2 } else if (type === 'i32') { out[field] = buf.readInt32BE(o); o += 4 } else if (type === 'str') { out[field] = packets.readString(buf, o); o += 64 } else {
+  for (const [field, rawType] of def.fields) {
+    const type = resolve(rawType, opts)
+    if (type === 'u8') { out[field] = buf.readUInt8(o); o += 1 } else if (type === 'i8') { out[field] = buf.readInt8(o); o += 1 } else if (type === 'u16') { out[field] = buf.readUInt16BE(o); o += 2 } else if (type === 'i16') { out[field] = buf.readInt16BE(o); o += 2 } else if (type === 'i32') { out[field] = buf.readInt32BE(o); o += 4 } else if (type === 'str') { out[field] = packets.readString(buf, o); o += 64 } else if (type.startsWith('xbytes:')) {
+      const n = opts.extBlocks ? Number(type.slice(7)) : 0; out[field] = Buffer.from(buf.subarray(o, o + n)); o += n
+    } else {
       const n = Number(type.slice(6)); out[field] = Buffer.from(buf.subarray(o, o + n)); o += n
     }
   }
@@ -71,6 +77,7 @@ class TestClient extends EventEmitter {
     this.entities = new Map()
     this.blockChanges = []
     this.defs = serverDefs(false)
+    this.opts = { extBlocks: false, extPos: false }
   }
 
   connect () {
@@ -85,7 +92,7 @@ class TestClient extends EventEmitter {
     })
   }
 
-  send (name, data = {}) { this.socket.write(encodeClient(name, data)) }
+  send (name, data = {}) { this.socket.write(encodeClient(name, data, this.opts)) }
 
   chat (msg) { this.send('message', { partial: 0, message: msg }) }
 
@@ -94,9 +101,10 @@ class TestClient extends EventEmitter {
     while (this.buffer.length) {
       const def = this.defs[this.buffer[0]]
       if (!def) throw new Error(`Test client: unknown server packet ${this.buffer[0]}`)
-      if (this.buffer.length < def.size) return
-      const p = decodeServer(def, this.buffer.subarray(0, def.size))
-      this.buffer = this.buffer.subarray(def.size)
+      const size = packets.sizeOf(def, this.opts)
+      if (this.buffer.length < size) return
+      const p = decodeServer(def, this.buffer.subarray(0, size), this.opts)
+      this.buffer = this.buffer.subarray(size)
       this._handle(p)
     }
   }
@@ -114,19 +122,26 @@ class TestClient extends EventEmitter {
           const fast = this.extensions.some(([n]) => n === 'FastMap')
           this.defs = serverDefs(fast)
           this.fastMap = fast
+          this.opts = {
+            extBlocks: this.extensions.some(([n]) => n === 'ExtendedBlocks'),
+            extPos: this.extensions.some(([n]) => n === 'ExtEntityPositions')
+          }
         }
         break
       case 'customBlockSupportLevel':
         this.send('customBlockSupportLevel', { level: 1 })
         break
       case 'levelDataChunk':
-        this.levelChunks.push(p.data.subarray(0, p.length))
+        if (this.opts.extBlocks && p.percent) (this.upperChunks = this.upperChunks || []).push(p.data.subarray(0, p.length))
+        else this.levelChunks.push(p.data.subarray(0, p.length))
         break
       case 'levelFinalize': {
-        const data = Buffer.concat(this.levelChunks)
+        const inflate = data => this.fastMap ? zlib.inflateRawSync(data) : zlib.gunzipSync(data).subarray(4)
+        const raw = inflate(Buffer.concat(this.levelChunks))
+        const upper = this.upperChunks ? inflate(Buffer.concat(this.upperChunks)) : null
         this.levelChunks = []
-        const raw = this.fastMap ? zlib.inflateRawSync(data) : zlib.gunzipSync(data).subarray(4)
-        this.level = { width: p.x, height: p.y, length: p.z, blocks: raw }
+        this.upperChunks = null
+        this.level = { width: p.x, height: p.y, length: p.z, blocks: raw, upper }
         this.emit('level', this.level)
         break
       }

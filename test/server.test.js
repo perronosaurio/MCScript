@@ -303,3 +303,61 @@ test('state survives a restart', async () => {
     await second.server.stop()
   }
 })
+
+test('ExtendedBlocks: ids above 255 reach capable clients, others get the fallback', async (t) => {
+  const { server } = await startServer({ owners: ['Alice'] })
+  t.after(() => server.stop())
+  const level = server.levels.main
+  server.setGlobalBlock({ id: 300, name: 'Big', fallback: 45 })
+  level.setBlockRaw(5, 20, 5, 300)
+
+  const ext = await join(server, 'Alice')
+  const noExt = await join(server, 'Bob', {
+    extensions: Object.entries(packets.EXTENSIONS).filter(([n]) => n !== 'ExtendedBlocks' && n !== 'ExtEntityPositions')
+  })
+  const i = level.index(5, 20, 5)
+  assert.equal(ext.level.blocks[i] | (ext.level.upper[i] << 8), 300)
+  assert.equal(noExt.level.blocks[i], 45)
+  assert.ok(ext.received.some(p => p.name === 'defineBlockExt' && p.block === 300))
+  assert.ok(!noExt.received.some(p => (p.name === 'defineBlockExt' || p.name === 'defineBlock') && p.block === 300))
+
+  // placing block 300 from the capable client (2-byte block id in SetBlock)
+  const pos = server.findPlayerExact('Alice').blockPos
+  ext.send('setBlock', { x: pos.x + 1, y: pos.y, z: pos.z, mode: 1, block: 300 })
+  const seen = await noExt.waitFor(p => p.name === 'setBlock' && p.x === pos.x + 1)
+  assert.equal(seen.block, 45)
+  assert.equal(level.getBlock(pos.x + 1, pos.y, pos.z), 300)
+
+  // bulk updates carry the high bits
+  ext.mark()
+  level.setBlocks([[1, 20, 1, 300], [2, 20, 1, 300]])
+  const bulk = await ext.waitFor('bulkBlockUpdate')
+  assert.equal(bulk.blocks[0] | (((bulk.high[0] >> 0) & 3) << 8), 300)
+
+  // levels bigger than 1023 need ExtEntityPositions
+  assert.match(await command(ext, '/newlvl huge 1100 16 16 flat', 600), /Created level huge/)
+  assert.match(await command(noExt, '/goto huge', 400), /too big for your client/)
+  ext.mark()
+  ext.chat('/goto huge')
+  const fin = await ext.waitFor('levelFinalize', 5000)
+  assert.equal(fin.x, 1100)
+  ext.close(); noExt.close()
+})
+
+test('SQLite storage keeps players across restarts', { skip: (() => { try { require('node:sqlite'); return false } catch (e) { return true } })() }, async () => {
+  const first = await startServer({ owners: ['Alice'], database: 'sqlite' })
+  const bob = await join(first.server, 'Bob')
+  bob.close()
+  const a = await join(first.server, 'Alice')
+  await command(a, '/rank Bob AdvBuilder')
+  a.close()
+  await first.server.stop()
+  const second = await startServer({ database: 'sqlite' }, first.root)
+  try {
+    assert.equal(second.server.playerDB.constructor.name, 'SqlitePlayerDB')
+    assert.equal(second.server.playerDB.get('bob').rank, 'AdvBuilder')
+    assert.equal(second.server.playerDB.get('alice').logins, 1)
+  } finally {
+    await second.server.stop()
+  }
+})

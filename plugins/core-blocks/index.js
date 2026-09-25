@@ -44,7 +44,7 @@ module.exports = {
 
     const idArg = (value) => {
       const id = Number(value)
-      if (!Number.isInteger(id) || id < 1 || id > 255) throw new CommandError('Block id must be a number between 1 and 255 (66-255 for new blocks).')
+      if (!Number.isInteger(id) || id < 1 || id > Blocks.MAX_BLOCK) throw new CommandError(`Block id must be a number between 1 and ${Blocks.MAX_BLOCK} (66+ for new blocks; above 255 needs an up to date client).`)
       return id
     }
     const bool = v => ['1', 'true', 'yes', 'on', 'y'].includes(String(v).toLowerCase())
