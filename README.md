@@ -8,6 +8,8 @@ Servidor de **ClassiCube / Minecraft Classic** escrito en JavaScript (Node.js), 
 - Compatible con el cliente de escritorio de [ClassiCube](https://github.com/ClassiCube/ClassiCube) y con el
   **cliente web** (WebSocket en el mismo puerto).
 - Aparece en la lista pública de [classicube.net](https://www.classicube.net/server/list/) (heartbeat) con verificación de nombres.
+- Probado con el cliente oficial ClassiCube 1.3.8 compilado desde su código fuente (mapas, CPE, bloques de ID > 255,
+  mapas de más de 1023 bloques, modelos 3D, partículas…), además de 42 tests automáticos.
 
 ## Inicio rápido
 
@@ -30,7 +32,10 @@ La primera vez se crean:
 | `logs/` | Registro diario |
 
 Los valores también se pueden cambiar con variables de entorno o un archivo `.env` (ver `.env.example`):
-`PORT`, `SERVER_NAME`, `MOTD`, `MAX_PLAYERS`, `PUBLIC`, `ONLINE_MODE`, `OWNERS`…
+`PORT`, `SERVER_NAME`, `MOTD`, `MAX_PLAYERS`, `PUBLIC`, `ONLINE_MODE`, `OWNERS`, `DATABASE`…
+
+Para servidores con muchos jugadores puedes usar SQLite (incluido en Node 22.5+) poniendo `"database": "sqlite"`:
+los datos de `players.json` se importan solos la primera vez.
 
 Pon tu nombre de ClassiCube en `owners` (en `config/server.json`) para tener el rango más alto.
 Desde la consola del servidor puedes escribir comandos (`/rank Nombre Admin`) o `stop` para apagar guardando todo.
@@ -41,11 +46,13 @@ Desde la consola del servidor puedes escribir comandos (`/rank Nombre Admin`) o 
 ## Funciones
 
 **Protocolo y cliente**
-- Classic 0.30 + 30 extensiones CPE: CustomBlocks, BlockDefinitions(+Ext), BulkBlockUpdate, FastMap, EnvColors,
-  EnvMapAspect (texturas), EnvWeatherType, ExtPlayerList v2 (lista de jugadores y skins), ChangeModel, HeldBlock,
-  SetHotbar, ClickDistance, HackControl, SelectionCuboid, BlockPermissions, MessageTypes, LongerMessages,
-  FullCP437, TextColors, TwoWayPing, InstantMOTD, PlayerClick, VelocityControl, EntityProperty, SetSpawnpoint,
-  TextHotKey, InventoryOrder, LightingMode, EmoteFix.
+- Classic 0.30 + 38 extensiones CPE: CustomBlocks, BlockDefinitions(+Ext), **ExtendedBlocks** (IDs de bloque hasta 767),
+  **ExtEntityPositions** (mapas de más de 1023 bloques), BulkBlockUpdate, FastMap, EnvColors, EnvMapAspect (texturas),
+  EnvWeatherType, ExtPlayerList v2 (lista de jugadores y skins), ChangeModel, **CustomModels** v2 (modelos 3D),
+  **CustomParticles**, **CinematicGui**, HeldBlock, SetHotbar, ClickDistance, HackControl, SelectionCuboid,
+  BlockPermissions, MessageTypes, LongerMessages, FullCP437, TextColors, TwoWayPing, InstantMOTD, PlayerClick,
+  VelocityControl, EntityProperty, SetSpawnpoint, TextHotKey, InventoryOrder, LightingMode, PluginMessages,
+  NotifyAction, ToggleBlockList, EmoteFix.
 - Los clientes sin CPE (o sin bloques personalizados) reciben bloques de reemplazo automáticamente.
 - Cliente web por WebSocket en el mismo puerto.
 
@@ -54,7 +61,8 @@ Desde la consola del servidor puedes escribir comandos (`/rank Nombre Admin`) o 
 - Formato `.cw` (ClassicWorld); importación de `.lvl` de MCGalaxy y del `.dat` antiguo.
 - Guardado automático, copias de seguridad periódicas con restauración y papelera (`levels/deleted`).
 - Por mapa: colores del cielo/niebla/nubes/sombra/sol, texture pack, clima, bloques de borde, nivel del agua,
-  MOTD con flags de hacks (`-hax +fly`), rango para construir y para visitar.
+  MOTD con flags de hacks (`-hax +fly`), rango para construir y para visitar, dueños (mapas personales) y físicas.
+- Historial de bloques en disco: `/about` y `/undoplayer` siguen funcionando después de reiniciar.
 
 **Bloques personalizados**
 - `/gb` (globales) y `/lb` (por mapa): nombre, texturas por cara, forma/caja, colisión, velocidad, sonido, brillo,
@@ -71,9 +79,9 @@ Desde la consola del servidor puedes escribir comandos (`/rank Nombre Admin`) o 
 | Plugin | Comandos |
 | --- | --- |
 | **core-essentials** | `/spawn /main /tp /tphere /msg /reply /ignore /me /say /announce /rules /players /whois /serverinfo /ping /where /time /model /skin /nick /color /title /hold /reach /fly /afk` |
-| **core-moderation** | `/rank /promote /demote /ranks /kick /ban /unban /banip /unbanip /bans /mute /unmute /freeze /vanish` + antispam |
+| **core-moderation** | `/rank /promote /demote /ranks /kick /ban /unban /banip /unbanip /bans /mute /unmute /freeze /vanish /sudo` + antispam |
 | **core-worlds** | `/newlvl /goto /levels /load /unload /save /deletelvl /import /mapinfo /map /setspawn /backup /restore /env /weather /texture` |
-| **core-building** | `/cuboid /replace /replaceall /line /sphere /fill /place /copy /paste /undo /redo /paint /about /measure` |
+| **core-building** | `/cuboid /replace /replaceall /line /sphere /fill /place /copy /paste /write /undo /undoplayer /redo /paint /about /measure` |
 | **core-blocks** | `/gb /lb` |
 | **warps** | `/warp /home` |
 | **zones** | `/zone` (áreas protegidas, visibles en el cliente) |
@@ -82,17 +90,44 @@ Desde la consola del servidor puedes escribir comandos (`/rank Nombre Admin`) o 
 | **announcer** | `/announcer` (mensajes automáticos) |
 | **relay-irc** | Puente de chat con IRC (desactivado por defecto) |
 | **relay-discord** | Puente de chat con Discord por webhook o bot (desactivado por defecto) |
+| **physics** | `/physics` (arena y grava que caen, agua y lava que fluyen, esponjas, TNT en cadena) |
+| **economy** | `/money /pay /baltop /eco /shop /buy` (rangos, títulos, colores y mapas propios) |
+| **minigames** | `/parkour /tntwars /ctf /zombie` (Parkour, TNT Wars, Capture the Flag, Zombie Survival) |
+| **effects** | `/effect /cinematic /blocklist` (partículas, barras de cine, inventario) |
+| **custom-models** | `/cmodel` (modelos 3D de ejemplo y tuyos en JSON; se usan con `/model`) |
+| **web-panel** | Panel de administración en el navegador (desactivado por defecto) |
 | **example** | Plugin de ejemplo comentado para aprender la API |
 
-Comandos del núcleo: `/help /plugins /pload /punload /preload /pcreate /cmdset /blockset /abort /stop`.
+Comandos del núcleo: `/help /plugins /pload /punload /preload /pcreate /pinstall /puninstall /cmdset /blockset /abort /stop`.
 
 Para desactivar un plugin añádelo a `disabledPlugins` en `config/server.json` (o usa `/punload`).
+Los plugins `relay-irc`, `relay-discord` y `web-panel` vienen desactivados: se activan con `"enabled": true` en su
+archivo de `config/plugins/` y `/preload <plugin>`.
+
+### Minijuegos
+
+Un operador convierte un mapa en arena y los jugadores se unen con `/<juego> join`:
+
+- **Parkour:** `/parkour setstart`, `/parkour addcheckpoint`, `/parkour setfinish` (marca los bloques que se pisan). Cronómetro, puntos de control y récords (`/parkour top`).
+- **TNT Wars:** `/tntwars enable`, `/tntwars setspawn red|blue`. Clic derecho para soltar TNT; gana el primer equipo en llegar al límite.
+- **Capture the Flag:** `/ctf enable`, `/ctf setflag red|blue`, `/ctf setspawn red|blue`. Toca la bandera enemiga y llévala a la tuya; clic a un enemigo para atraparlo.
+- **Zombie Survival:** `/zombie enable`. Un jugador empieza como zombi y contagia al tocar; los humanos ganan si alguno sobrevive.
+
+El mapa se restaura al terminar cada ronda y, con el plugin `economy`, los ganadores reciben monedas.
+
+### Panel web
+
+Con `web-panel` activado (escucha en `127.0.0.1:8080` por defecto), abre `http://127.0.0.1:8080/` y usa el token
+de `config/plugins/web-panel.json`: jugadores conectados, mapas, plugins, registro en vivo y consola.
 
 ## Crear plugins
 
 ```bash
 npm run plugin:create MiPlugin     # o /pcreate MiPlugin dentro del juego
 ```
+
+También puedes instalar plugins de otros: `/pinstall https://github.com/usuario/repo/blob/main/plugin.js`
+o `/pinstall npm:nombre-del-paquete` (sin ejecutar scripts de instalación).
 
 ```js
 module.exports = {
@@ -133,7 +168,8 @@ lib/
   level/              mapas, formato .cw, importadores, generadores
   commands/           gestor de comandos y comandos del núcleo
   plugins/            cargador de plugins y plantilla
-  storage/            base de datos de jugadores (JSON)
+  storage/            base de datos de jugadores (JSON o SQLite)
+  cpe-extras.js       modelos 3D y partículas (CustomModels / CustomParticles)
 plugins/              plugins incluidos
 test/                 tests
 ```

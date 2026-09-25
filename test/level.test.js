@@ -116,3 +116,14 @@ test('block ids above 255 are stored in the upper array and saved as BlockArray2
   table[700] = 1
   assert.equal(copy.serializeForClient(table).upper, null)
 })
+
+test('/write font layout', () => {
+  const font = require('../plugins/core-building/font')
+  const hi = font.layout('Hi!')
+  assert.equal(hi.height, 7)
+  assert.equal(hi.width, 5 + 1 + 5 + 1 + 5)
+  // "H" has a full left column
+  for (let y = 0; y < 7; y++) assert.ok(hi.pixels.some(([x, py]) => x === 0 && py === y))
+  assert.deepEqual(font.glyph('ñ'), font.glyph('N'))
+  assert.equal(font.layout('   ').pixels.length, 0)
+})

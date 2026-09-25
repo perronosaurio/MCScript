@@ -671,3 +671,21 @@ test('CPE extras: custom models, particles, cinematic GUI, plugin messages and n
   assert.equal((await gotAction).action, 'thirdPersonChanged')
   a.close()
 })
+
+test('/write draws text with blocks', async (t) => {
+  const { server } = await startServer({ owners: ['Alice'] })
+  t.after(() => server.stop())
+  const a = await join(server, 'Alice')
+  const p = server.findPlayerExact('Alice').blockPos
+  a.chat('/write stone 2 OK')
+  await a.waitForMessage(/mark the corners/)
+  a.send('setBlock', { x: p.x + 1, y: p.y, z: p.z - 2, mode: 1, block: 1 })
+  a.send('setBlock', { x: p.x + 3, y: p.y, z: p.z - 2, mode: 1, block: 1 })
+  await a.waitForMessage(/Write \(22 blocks long\)/)
+  const level = server.levels.main
+  // bottom-left pixel of "O" is empty, the one next to it is filled (scale 2)
+  assert.equal(level.getBlock(p.x + 1, p.y, p.z - 2), 0)
+  assert.equal(level.getBlock(p.x + 3, p.y, p.z - 2), 1)
+  assert.equal(level.getBlock(p.x + 1, p.y + 2, p.z - 2), 1)
+  a.close()
+})

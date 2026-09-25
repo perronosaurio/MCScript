@@ -88,12 +88,16 @@ handlers `monitor` siguen ejecutándose (útil para registros o relays; comprueb
 | `playerChangeLevel` | `player, from, to` | Sí |
 | `playerRankChange` | `name, from, to, by` | — |
 | `playerAbort` | `player` (usó /abort) | — |
+| `blockPermission` | `player, level, x, y, z, oldBlock, block, placing, allowed, message` | Cambia `ev.allowed` para permitir o denegar (antes de `blockChange`) |
 | `blockChange` | `player, level, x, y, z, oldBlock, block` (modificable), `placing` | Sí (se revierte) |
 | `drawOperation` | `player, level, changes` (filtrable), `name` | Sí |
 | `levelLoad` / `levelSave` | `level` | — |
 | `levelUnload` | `level` | Sí |
 | `tabListEntry` | `player, listName, groupName, groupRank` (modificables) | — |
 | `heartbeat` | `params` (URLSearchParams) | Sí |
+| `explosion` | `level, x, y, z, radius` (plugin physics) | — |
+| `pluginMessage` | `player, channel, data` (Buffer de 64 bytes, CPE PluginMessages) | — |
+| `notifyAction` | `player, action, value` o `position` (CPE NotifyAction: `blockListSelected`, `levelSaved`, `thirdPersonChanged`…) | — |
 | `pluginLoad` / `pluginUnload` | `plugin` | — |
 | `serverStart` / `serverStop` | `server` | — |
 
@@ -112,13 +116,20 @@ handlers `monitor` siguen ejecutándose (útil para registros o relays; comprueb
   `server.removeLevelBlock(level, id)`.
 - Entidades (NPCs): `server.createEntity({ name, skin, model, level, x, y, z, yaw, pitch, scale })`,
   `moveEntity`, `rotateEntity`, `updateEntity`, `removeEntity`, `entitiesIn(level)`.
+- Modelos 3D: `server.defineModel({ name, parts, ... })` (formato en `plugins/custom-models/index.js`), `server.removeModel(name)`.
+- Partículas: `server.defineParticle(nombre, { tint, count, size, speed, gravity, lifetime, ... })` y
+  `server.spawnParticles(level, nombre, x, y, z)`.
+- `server.createConsoleActor(nombre, alRecibirMensaje)`: ejecuta comandos con poder de consola y captura la salida.
+- `server.log.subscribe(fn)`: recibe cada línea del registro.
 - `server.config` y `server.saveConfig()`.
 
 ## Mapas (`Level`)
 
 - `level.name, width, height, length, spawn, env, motd, buildRank, visitRank`.
 - `level.getBlock(x, y, z)`, `level.setBlock(x, y, z, bloque)` (lo envía a los jugadores),
-  `level.setBlocks([[x, y, z, bloque], ...])` (usa BulkBlockUpdate).
+  `level.setBlocks([[x, y, z, bloque], ...])` (usa BulkBlockUpdate), `level.getAt(indice)` / `level.index(x, y, z)`.
+  Los IDs van de 0 a 767 (con ExtendedBlocks); los clientes antiguos reciben el bloque de reemplazo.
+- `level.owners` (nombres en minúsculas) y `level.canBuild(jugador)`.
 - `level.parseBlock('piedra' | '1')`, `level.blockName(id)`, `level.getBlockDef(id)`.
 - `level.meta`: objeto libre para tus datos; **se guarda dentro del archivo `.cw`** (lo usan zones, portals y bots).
 - `level.players`, `level.dirty = true` para forzar el guardado.
@@ -133,9 +144,28 @@ handlers `monitor` siguen ejecutándose (útil para registros o relays; comprueb
   `blockPos`, `feetPos`.
 - `player.kick(motivo)`.
 - `await player.selectBlocks(n, etiqueta)`: pide al jugador marcar n bloques (lanza error si usa /abort).
-- CPE: `supports('Extensión')`, `setModel`, `setSkin`, `holdBlock`, `setHotbar`, `setReach`, `setHacks`,
-  `setVelocity`, `setSpawnpoint`, `showSelection(id, etiqueta, p1, p2, [r, g, b, a])`, `hideSelection`,
-  `setTextHotKey`, `sendEnv`, `pingMs`.
+- CPE: `supports('Extensión')`, `setModel(modelo, persistir = true)`, `setSkin`, `holdBlock`, `setHotbar`, `setReach`,
+  `setHacks`, `setVelocity`, `setSpawnpoint`, `showSelection(id, etiqueta, p1, p2, [r, g, b, a])`, `hideSelection`,
+  `setTextHotKey`, `setCinematic({ hideHotbar, hideHand, hideCrosshair, color, barSize })`, `toggleBlockList(abrir)`,
+  `sendPluginMessage(canal, datos)`, `sendEnv`, `pingMs`.
+
+## APIs de los plugins incluidos
+
+Con `ctx.getPlugin(nombre)` puedes usar lo que exportan otros plugins (declara `depends` si lo necesitas siempre):
+
+| Plugin | API |
+| --- | --- |
+| `economy` | `balance(nombre)`, `add(nombre, n)`, `take(nombre, n)` (devuelve `false` si no alcanza), `setBalance`, `currency` |
+| `physics` | `explode(level, x, y, z, radio)`, `schedule(level, x, y, z)`, `modeOf(level)` |
+| `zones` | `zonesAt(level, x, y, z)`, `canBuild(jugador, level, x, y, z)` |
+| `core-building` | `apply(jugador, level, cambios, nombre)` (dibujar respetando permisos y undo), `history` |
+| `minigames` | `games.tntwars / ctf / zombie` con sus rondas (`rounds`, `roundOf(jugador)`) |
+
+## Instalar plugins de otros
+
+`/pinstall <url>` descarga un plugin de un solo archivo (los enlaces de GitHub se convierten a la versión "raw") y
+`/pinstall npm:paquete` lo instala desde npm en `plugins/<nombre>/`. `/puninstall <plugin>` lo mueve a
+`plugins/.removed`. Solo el rango Owner puede usarlos: instala únicamente código en el que confíes.
 
 ## Plugins del formato 1.x
 

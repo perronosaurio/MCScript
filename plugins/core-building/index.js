@@ -5,6 +5,7 @@
 
 const path = require('path')
 const { BlockLog } = require('./block-log')
+const font = require('./font')
 
 const MAX_UNDO_OPS = 30
 const HISTORY_PER_LEVEL = 300000
@@ -550,6 +551,42 @@ module.exports = {
         } else {
           player.message('&7  No changes recorded since the server started.')
         }
+      }
+    })
+
+    ctx.command({
+      name: 'write',
+      aliases: ['text', 'writetext'],
+      category: 'building',
+      rank: 'Builder',
+      usage: '/write <block> [scale 1-4] <text>',
+      description: 'Writes text with blocks. Mark where it starts, then a block in the direction to write',
+      inGame: true,
+      async run (player, args, { usage }) {
+        if (args.length < 2) return usage()
+        const block = blockArg(player, args.shift())
+        let scale = 1
+        if (args.length > 1 && /^[1-4]$/.test(args[0])) scale = Number(args.shift())
+        const message = args.join(' ')
+        const { pixels, width } = font.layout(message)
+        if (!pixels.length) throw new CommandError('Nothing to write (unsupported characters).')
+        checkVolume(player, pixels.length * scale * scale)
+        const marks = await select(player, 2, 'Write')
+        if (!marks) return
+        const [a, b] = marks
+        // write along the horizontal axis that points the most from the first mark to the second
+        const dx = b.x - a.x; const dz = b.z - a.z
+        const dir = Math.abs(dx) >= Math.abs(dz) ? { x: Math.sign(dx) || 1, z: 0 } : { x: 0, z: Math.sign(dz) || 1 }
+        const changes = []
+        for (const [px, py] of pixels) {
+          for (let sx = 0; sx < scale; sx++) {
+            for (let sy = 0; sy < scale; sy++) {
+              const along = px * scale + sx
+              changes.push([a.x + dir.x * along, a.y + py * scale + sy, a.z + dir.z * along, block])
+            }
+          }
+        }
+        apply(player, player.level, changes, `Write (${width * scale} blocks long)`)
       }
     })
 
