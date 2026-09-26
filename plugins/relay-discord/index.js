@@ -90,12 +90,12 @@ module.exports = {
 
     ctx.on('playerChat', (ev) => { if (!ev.cancelled) send(ev.player.name, clean(ev.message)) }, { priority: 'monitor' })
     if (config.relayJoins) {
-      ctx.on('playerJoin', ({ player }) => send(null, `➕ **${clean(player.name)}** joined the game`), { priority: 'monitor' })
-      ctx.on('playerLeave', ({ player }) => { if (player.loggedIn) send(null, `➖ **${clean(player.name)}** left the game`) }, { priority: 'monitor' })
+      ctx.on('playerJoin', ({ player }) => send(null, `**${clean(player.name)}** joined the game`), { priority: 'monitor' })
+      ctx.on('playerLeave', ({ player }) => { if (player.loggedIn) send(null, `**${clean(player.name)}** left the game`) }, { priority: 'monitor' })
     }
-    ctx.on('serverStart', () => send(null, '✅ Server started'), { priority: 'monitor' })
+    ctx.on('serverStart', () => send(null, 'Server started'), { priority: 'monitor' })
 
-    // ---------------------------------------------------------------- incoming (gateway)
+    // incoming (gateway)
 
     if (!config.botToken || !config.channelId) return
     if (typeof WebSocket === 'undefined') {

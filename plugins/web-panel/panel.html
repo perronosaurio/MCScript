@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -48,30 +48,30 @@
 <body>
 <section id="login" hidden>
   <h2>MCScript · Panel</h2>
-  <p>Pega el token de <code>config/plugins/web-panel.json</code>.</p>
-  <form id="loginForm"><input id="token" type="password" placeholder="Token" autocomplete="off"><button>Entrar</button></form>
+  <p>Paste the token from <code>config/plugins/web-panel.json</code>.</p>
+  <form id="loginForm"><input id="token" type="password" placeholder="Token" autocomplete="off"><button>Log in</button></form>
   <div class="err" id="loginErr"></div>
 </section>
 
 <div id="app" hidden>
   <header>
     <h1><span>■</span> <span id="name" style="color:inherit"></span></h1>
-    <div class="stat">Jugadores <b id="sPlayers">–</b></div>
-    <div class="stat">Mapas <b id="sLevels">–</b></div>
-    <div class="stat">Memoria <b id="sMem">–</b> MB</div>
-    <div class="stat">Activo <b id="sUp">–</b></div>
+    <div class="stat">Players <b id="sPlayers">–</b></div>
+    <div class="stat">Levels <b id="sLevels">–</b></div>
+    <div class="stat">Memory <b id="sMem">–</b> MB</div>
+    <div class="stat">Uptime <b id="sUp">–</b></div>
     <div class="stat">MCScript <b id="sVer">–</b></div>
-    <button id="logout" style="margin-left:auto">Salir</button>
+    <button id="logout" style="margin-left:auto">Log out</button>
   </header>
   <main>
     <div class="col">
       <section>
-        <h2>Jugadores conectados</h2>
-        <div class="scroll"><table><thead><tr><th>Nombre</th><th>Rango</th><th>Mapa</th><th class="num">Ping</th><th>Cliente</th><th></th></tr></thead><tbody id="players"></tbody></table></div>
+        <h2>Online players</h2>
+        <div class="scroll"><table><thead><tr><th>Name</th><th>Rank</th><th>Level</th><th class="num">Ping</th><th>Client</th><th></th></tr></thead><tbody id="players"></tbody></table></div>
       </section>
       <section>
-        <h2>Mapas</h2>
-        <div class="scroll"><table><thead><tr><th>Nombre</th><th>Estado</th><th>Tamaño</th><th class="num">Jugadores</th><th></th></tr></thead><tbody id="levels"></tbody></table></div>
+        <h2>Levels</h2>
+        <div class="scroll"><table><thead><tr><th>Name</th><th>State</th><th>Size</th><th class="num">Players</th><th></th></tr></thead><tbody id="levels"></tbody></table></div>
       </section>
       <section>
         <h2>Plugins</h2>
@@ -79,9 +79,9 @@
       </section>
     </div>
     <section>
-      <h2>Registro y consola</h2>
+      <h2>Log and console</h2>
       <div id="log" aria-live="polite"></div>
-      <form id="cmdForm"><input id="cmd" type="text" placeholder="/comando o mensaje para el chat" autocomplete="off"><button>Enviar</button></form>
+      <form id="cmdForm"><input id="cmd" type="text" placeholder="/command or chat message" autocomplete="off"><button>Send</button></form>
     </section>
   </main>
 </div>
@@ -113,7 +113,7 @@
 
   async function api (path, opts = {}) {
     const res = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token } })
-    if (res.status === 401) { showLogin('Token incorrecto.'); throw new Error('unauthorized') }
+    if (res.status === 401) { showLogin('Wrong token.'); throw new Error('unauthorized') }
     return res.json()
   }
 
@@ -123,7 +123,7 @@
 
   function fmtTime (ms) {
     const s = Math.floor(ms / 1000); const h = Math.floor(s / 3600); const m = Math.floor(s % 3600 / 60)
-    return h ? `${h} h ${m} min` : `${m} min`
+    return h ? `${h}h ${m}m` : `${m}m`
   }
 
   function row (cells) {
@@ -158,7 +158,7 @@
     $('plugins').textContent = st.plugins.map(p => p.name + (p.version ? ' ' + p.version : '')).join(' · ')
 
     const pt = $('players'); pt.replaceChildren()
-    if (!players.length) pt.appendChild(row([{ text: 'Nadie conectado' }]))
+    if (!players.length) pt.appendChild(row([{ text: 'Nobody online' }]))
     for (const p of players) {
       const name = document.createElement('span'); name.appendChild(colored(p.color + p.name))
       if (p.afk) { const s = document.createElement('span'); s.className = 'pill'; s.textContent = 'AFK'; name.append(' ', s) }
@@ -169,11 +169,11 @@
 
     const lt = $('levels'); lt.replaceChildren()
     for (const l of levels) {
-      const state = document.createElement('span'); state.className = 'pill' + (l.loaded ? ' on' : ''); state.textContent = l.main ? 'principal' : l.loaded ? 'cargado' : 'en disco'
+      const state = document.createElement('span'); state.className = 'pill' + (l.loaded ? ' on' : ''); state.textContent = l.main ? 'main' : l.loaded ? 'loaded' : 'on disk'
       const actions = document.createElement('span')
-      if (l.loaded && !l.main) actions.append(button('Descargar', `/unload ${l.name}`))
-      if (!l.loaded) actions.append(button('Cargar', `/load ${l.name}`))
-      if (l.loaded) actions.append(' ', button('Guardar', `/save ${l.name}`))
+      if (l.loaded && !l.main) actions.append(button('Unload', `/unload ${l.name}`))
+      if (!l.loaded) actions.append(button('Load', `/load ${l.name}`))
+      if (l.loaded) actions.append(' ', button('Save', `/save ${l.name}`))
       lt.appendChild(row([l.name, state, l.size ? l.size.join('×') : '', { text: l.loaded ? l.players : '', num: true }, actions]))
     }
   }
@@ -206,7 +206,7 @@
   async function start () {
     try {
       await refresh()
-    } catch (e) { if (e.message !== 'unauthorized') showLogin('No se pudo conectar con el servidor.'); return }
+    } catch (e) { if (e.message !== 'unauthorized') showLogin('Could not reach the server.'); return }
     $('login').hidden = true; $('app').hidden = false
     pollLogs()
     setInterval(() => pollLogs().catch(() => {}), 2000)

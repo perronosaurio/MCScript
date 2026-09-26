@@ -22,7 +22,7 @@ module.exports = {
     // Persistent data lives in data/plugins/example/*.json
     const stats = ctx.loadData('stats.json', { joins: {} })
 
-    // 1) A simple command -------------------------------------------------------------
+    // 1) A simple command
     ctx.command({
       name: 'hello',
       aliases: ['hi'],
@@ -38,7 +38,7 @@ module.exports = {
       }
     })
 
-    // 2) Events: count joins and show a status message (top right corner) ---------------
+    // 2) Events: count joins and show a status message (top right corner)
     ctx.on('playerJoin', ({ player }) => {
       const key = player.name.toLowerCase()
       stats.joins[key] = (stats.joins[key] || 0) + 1
@@ -46,7 +46,7 @@ module.exports = {
       player.message(`&7Visit #${stats.joins[key]}`, 'status1')
     })
 
-    // 3) Cancelling events: no TNT close to spawn (except for operators) -----------------
+    // 3) Cancelling events: no TNT close to spawn (except for operators)
     ctx.on('blockChange', (ev) => {
       if (!config.blockTntNearSpawn || !ev.placing || ev.block !== 46) return
       if (ev.player.permission >= server.ranks.permissionOf('Operator')) return
@@ -54,7 +54,7 @@ module.exports = {
       if (Math.hypot(ev.x - s.x, ev.z - s.z) < config.tntSafeRadius) ev.cancel('&cNo TNT near the spawn!')
     })
 
-    // 4) CPE: launch the player into the air (VelocityControl) ----------------------------
+    // 4) CPE: launch the player into the air (VelocityControl)
     ctx.command({
       name: 'launch',
       category: 'other',
@@ -70,7 +70,7 @@ module.exports = {
       }
     })
 
-    // 5) Selections + timers: highlight an area for 10 seconds ---------------------------
+    // 5) Selections + timers: highlight an area for 10 seconds
     ctx.command({
       name: 'highlight',
       category: 'other',
@@ -89,7 +89,7 @@ module.exports = {
       }
     })
 
-    // 6) Expose an API that other plugins can use via ctx.getPlugin('example') -----------
+    // 6) Expose an API that other plugins can use via ctx.getPlugin('example')
     module.exports.api = {
       joinsOf: name => stats.joins[name.toLowerCase()] || 0
     }
