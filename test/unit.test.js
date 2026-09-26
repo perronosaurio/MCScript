@@ -14,10 +14,10 @@ const { Ranks } = require('../lib/ranks')
 test('cp437 table has 256 entries and round-trips', () => {
   assert.equal(cp437.LOW.length, 32)
   assert.equal(cp437.HIGH.length, 128)
-  const s = 'Hola señor ☺ ░▒▓ ²'
+  const s = 'naïve café ☺ ░▒▓ ²'
   assert.equal(cp437.decode(cp437.encode(s)), s)
   // without FullCP437 only ASCII is sent
-  assert.equal(cp437.decode(cp437.encode('señor', false)), 'se?or')
+  assert.equal(cp437.decode(cp437.encode('café', false)), 'caf?')
 })
 
 // Packet sizes as read by the ClassiCube client (src/Protocol.c) for the versions we advertise
@@ -210,4 +210,14 @@ test('SQLite player database', { skip: (() => { try { require('node:sqlite'); re
   assert.equal(db.all().length, 2)
   db.close()
   fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('/calculate expression evaluator', () => {
+  const { evaluate } = require('../plugins/core-building/more')
+  assert.equal(evaluate('12*(3+4)/2'), 42)
+  assert.equal(evaluate('2^10'), 1024)
+  assert.equal(evaluate('-3 + 5 % 3'), -1)
+  assert.equal(Math.round(evaluate('sqrt(2)*sqrt(2)')), 2)
+  assert.throws(() => evaluate('process.exit()'))
+  assert.throws(() => evaluate('1/0'))
 })

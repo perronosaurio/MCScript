@@ -104,6 +104,51 @@ module.exports = {
       }
     })
 
+    ctx.command({
+      name: 'explode',
+      aliases: ['boom'],
+      category: 'other',
+      rank: 'Operator',
+      usage: '/explode [player | x y z] [radius]',
+      description: 'Makes an explosion at a player or at coordinates (needs the physics plugin)',
+      run (player, args) {
+        const physics = ctx.getPlugin('physics')
+        if (!physics || !physics.explode) throw new CommandError('The physics plugin is not loaded.')
+        let level = player.level
+        let pos
+        let radius = 3
+        if (args.length >= 3 && args.slice(0, 3).every(a => /^-?\d+$/.test(a))) {
+          pos = { x: Number(args[0]), y: Number(args[1]), z: Number(args[2]) }
+          if (args[3]) radius = Number(args[3])
+        } else {
+          const target = findTarget(player, args[0] || (player.isConsole ? null : player.name))
+          level = target.level
+          pos = target.blockPos
+          if (args[1]) radius = Number(args[1])
+        }
+        if (!(radius >= 1 && radius <= 10)) throw new CommandError('Radius must be between 1 and 10.')
+        physics.explode(level, pos.x, pos.y, pos.z, radius)
+      }
+    })
+
+    ctx.command({
+      name: 'slap',
+      category: 'other',
+      rank: 'Operator',
+      usage: '/slap <player>',
+      description: 'Sends a player flying up',
+      run (player, args, { usage }) {
+        if (!args[0]) return usage()
+        const target = findTarget(player, args[0])
+        if (!target.setVelocity(0, 6, 0, { addX: true, addZ: true })) {
+          // older clients: teleport them up instead
+          const p = target.feetPos
+          target.teleport(p.x, Math.min(target.level.height - 2, p.y + 10), p.z)
+        }
+        server.broadcast(`&d${target.coloredName}&d was slapped into the air by ${player.coloredName}&d.`, p => p.level === target.level)
+      }
+    })
+
     // log what clients report through NotifyAction (useful for plugins)
     ctx.on('notifyAction', ({ player, action, value }) => ctx.log.debug(`${player.name}: ${action} ${value ?? ''}`))
   }

@@ -38,7 +38,7 @@ module.exports = {
     for (const level of server.levels.loaded.values()) loadHistory(level)
     ctx.on('levelLoad', ({ level }) => loadHistory(level))
 
-    // ---------------------------------------------------------------- helpers
+    // helpers
 
     const key = p => p.name.toLowerCase()
 
@@ -163,7 +163,7 @@ module.exports = {
 
     const volumeOf = b => (b.x2 - b.x1 + 1) * (b.y2 - b.y1 + 1) * (b.z2 - b.z1 + 1)
 
-    // ---------------------------------------------------------------- commands
+    // commands
 
     ctx.command({
       name: 'cuboid',
@@ -613,7 +613,9 @@ module.exports = {
       }
     })
 
-    // ---------------------------------------------------------------- manual building
+    require('./more')(ctx, { select, blockArg, checkVolume, box, apply, clipboards, key })
+
+    // manual building
 
     ctx.on('blockChange', (ev) => {
       if (!ev.placing && ev.player.data['building.paint']) ev.block = ev.player.heldBlock

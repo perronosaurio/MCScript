@@ -689,3 +689,121 @@ test('/write draws text with blocks', async (t) => {
   assert.equal(level.getBlock(p.x + 1, p.y + 2, p.z - 2), 1)
   a.close()
 })
+
+test('MCGalaxy style commands: chat, info and teleports', async (t) => {
+  const { server } = await startServer({ owners: ['Op'] })
+  t.after(() => server.stop())
+  const op = await join(server, 'Op')
+  const bob = await join(server, 'Bob')
+
+  // emotes and staff chat
+  bob.chat('I (heart) this')
+  await op.waitForMessage(/I ♥ this/)
+  op.mark(); bob.mark()
+  op.chat('#only staff')
+  await op.waitForMessage(/\[Op\].*only staff/)
+  await sleep(150)
+  assert.ok(!bob.received.slice(bob.cursor).some(p => p.name === 'message' && /only staff/.test(p.message)))
+
+  // mail
+  await command(op, '/send Bob check the spawn')
+  assert.match(await command(bob, '/inbox'), /Op.*check the spawn/)
+
+  // /back after a teleport
+  moveTo(op, 10.5, 16, 10.5); await sleep(100)
+  await command(op, '/tp 30 16 30')
+  await command(op, '/back', 200)
+  assert.equal(server.findPlayerExact('Op').blockPos.x, 10)
+
+  // tpa
+  await command(bob, '/tpa Op')
+  await command(op, '/tpa accept', 200)
+  assert.equal(server.findPlayerExact('Bob').blockPos.x, server.findPlayerExact('Op').blockPos.x)
+
+  assert.match(await command(op, '/roll 5 5'), /rolled &f5/)
+  assert.match(await command(op, '/top logins'), /1\. /)
+  assert.match(await command(op, '/search levels mai'), /main/)
+  assert.match(await command(op, '/calculate 2^8'), /= &f256/)
+  assert.match(await command(op, '/plugin list'), /Plugins/)
+  assert.match(await command(op, '/give Bob 100'), /Bob now has &a150/)
+
+  // moderation
+  await command(op, '/warn Bob spam')
+  await command(op, '/warn Bob spam')
+  op.chat('/warn Bob spam')
+  await bob.waitFor('disconnect')
+  assert.match(bob.kickReason, /Warned 3 times/)
+  assert.match(await command(op, '/report Bob griefing'), /Thanks/)
+  assert.match(await command(op, '/report list'), /Bob.*griefing/)
+  await command(op, '/temprank Bob Builder 1h')
+  assert.equal(server.playerDB.get('bob').rank, 'Builder')
+  assert.equal(server.playerDB.get('bob').tempRank.previous, 'Guest')
+  assert.match(await command(op, '/rankinfo Bob'), /Guest &7-> &fBuilder/)
+  await command(op, '/whitelist on')
+  const stranger = new TestClient({ port: server.port, name: 'Stranger' })
+  await stranger.connect()
+  await stranger.waitFor('disconnect')
+  assert.match(stranger.kickReason, /whitelist/)
+  await command(op, '/whitelist off')
+  op.close()
+})
+
+test('MCGalaxy style commands: levels and drawing', async (t) => {
+  const { server } = await startServer({ owners: ['Op'] })
+  t.after(() => server.stop())
+  const op = await join(server, 'Op')
+  const level = server.levels.main
+  const mark = async (cmd, ...points) => {
+    op.mark(); op.chat(cmd)
+    await op.waitForMessage(/Place or break/)
+    for (const [x, y, z] of points) op.send('setBlock', { x, y, z, mode: 1, block: 1 })
+  }
+  moveTo(op, 20.5, 16, 20.5); await sleep(100)
+
+  await mark('/pyramid stone', [16, 16, 16], [20, 16, 20])
+  await op.waitForMessage(/Pyramid: changed/)
+  assert.equal(level.getBlock(18, 18, 18), 1)
+  assert.equal(level.getBlock(16, 17, 16), 0)
+
+  await mark('/hollow', [10, 5, 10], [14, 9, 14])
+  await op.waitForMessage(/Hollow: changed/)
+  assert.equal(level.getBlock(12, 7, 12), 0)
+
+  await mark('/spheroid glass', [22, 16, 22], [26, 20, 26])
+  await op.waitForMessage(/Spheroid: changed/)
+  assert.equal(level.getBlock(24, 18, 24), 20)
+
+  await mark('/maze stone 2', [30, 16, 10], [40, 16, 20])
+  await op.waitForMessage(/Maze: changed/)
+
+  // /mark from a command
+  op.mark(); op.chat('/center')
+  await op.waitForMessage(/Place or break/)
+  await command(op, '/mark 0 20 0')
+  await command(op, '/mark 4 20 4', 300)
+  assert.equal(level.getBlock(2, 20, 2), 41)
+
+  // mode: everything placed becomes brick
+  await command(op, '/mode brick')
+  op.send('setBlock', { x: 21, y: 16, z: 21, mode: 1, block: 1 })
+  await sleep(150)
+  assert.equal(level.getBlock(21, 16, 21), 45)
+  await command(op, '/mode')
+
+  // level maintenance
+  level.setBlock(5, 16, 5, 8)
+  assert.match(await command(op, '/unflood'), /Removed 1 flowing/)
+  assert.match(await command(op, '/copylvl main main2', 300), /Copied/)
+  assert.ok(server.levels.exists('main2'))
+  await command(op, '/renamelvl main2 other', 300)
+  assert.ok(server.levels.exists('other') && !server.levels.exists('main2'))
+  await command(op, '/lockdown other')
+  await command(op, '/newlvl small 32 32 32 flat', 400)
+  op.mark(); op.chat('/goto small')
+  await op.waitFor('levelFinalize')
+  await command(op, '/resizelvl 48 32 40', 600)
+  assert.equal(server.levels.get('small').width, 48)
+  const fin = op.received.filter(p => p.name === 'levelFinalize').pop()
+  assert.equal(fin.x, 48)
+  op.close()
+})

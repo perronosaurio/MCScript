@@ -36,7 +36,7 @@ module.exports = {
       server.tabList.update(p)
     }
 
-    // ---------------------------------------------------------------- teleporting
+    // teleporting
 
     ctx.command({
       name: 'spawn',
@@ -108,7 +108,7 @@ module.exports = {
       }
     })
 
-    // ---------------------------------------------------------------- chat
+    // chat
 
     const whisper = (from, to, msg) => {
       if (to.data.ignoring && to.data.ignoring.has(from.name.toLowerCase())) return from.message(`&c${to.name} is ignoring you.`)
@@ -212,7 +212,7 @@ module.exports = {
       }
     })
 
-    // ---------------------------------------------------------------- information
+    // information
 
     ctx.command({
       name: 'players',
@@ -311,7 +311,7 @@ module.exports = {
       run (player) { player.message(`&eServer time: &f${new Date().toLocaleString()}`) }
     })
 
-    // ---------------------------------------------------------------- appearance
+    // appearance
 
     ctx.command({
       name: 'model',
@@ -411,7 +411,7 @@ module.exports = {
       })
     })
 
-    // ---------------------------------------------------------------- CPE toys
+    // CPE toys
 
     ctx.command({
       name: 'hold',
@@ -466,7 +466,7 @@ module.exports = {
       }
     })
 
-    // ---------------------------------------------------------------- AFK
+    // AFK
 
     ctx.command({
       name: 'afk',
@@ -491,6 +491,8 @@ module.exports = {
         for (const p of server.online) if (!isAfk(p) && p.lastActivity < limit) setAfk(p, true, 'auto')
       }, 15000)
     }
+
+    require('./more')(ctx, { find })
 
     ctx.on('tabListEntry', (ev) => {
       if (isAfk(ev.player)) ev.listName += ' &7(AFK)'

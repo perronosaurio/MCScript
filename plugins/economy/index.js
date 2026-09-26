@@ -130,7 +130,14 @@ module.exports = {
       }
     })
 
-    // ---------------------------------------------------------------- shop
+    const giveTake = (sign) => (player, args, { usage }) => {
+      if (args.length < 2) return usage()
+      return server.commands.execute(player, `/eco ${sign > 0 ? 'give' : 'take'} ${args[0]} ${args[1]}`)
+    }
+    ctx.command({ name: 'give', category: 'moderation', rank: 'Admin', usage: '/give <player> <amount>', description: 'Gives money to a player', run: giveTake(1) })
+    ctx.command({ name: 'take', category: 'moderation', rank: 'Admin', usage: '/take <player> <amount>', description: 'Takes money from a player', run: giveTake(-1) })
+
+    // shop
 
     const shop = config.shop
     ctx.command({

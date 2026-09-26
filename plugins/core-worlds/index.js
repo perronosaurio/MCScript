@@ -103,7 +103,7 @@ module.exports = {
       for (const p of level.players) if (p.spawned) p.sendEnv()
     }
 
-    // ---------------------------------------------------------------- levels
+    // levels
 
     ctx.command({
       name: 'newlvl',
@@ -320,7 +320,9 @@ module.exports = {
       }
     })
 
-    // ---------------------------------------------------------------- backups
+    require('./more')(ctx, { levelArg })
+
+    // backups
 
     ctx.command({
       name: 'backup',
@@ -354,7 +356,7 @@ module.exports = {
       }
     })
 
-    // ---------------------------------------------------------------- environment
+    // environment
 
     ctx.command({
       name: 'env',

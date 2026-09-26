@@ -9,6 +9,7 @@ module.exports = {
   author: 'MCScript',
 
   defaultConfig: {
+    whitelist: { enabled: false, players: [] },
     antiSpam: {
       enabled: true,
       maxMessages: 6,
@@ -54,7 +55,7 @@ module.exports = {
       return null
     }
 
-    // ---------------------------------------------------------------- ranks
+    // ranks
 
     ctx.command({
       name: 'rank',
@@ -109,7 +110,7 @@ module.exports = {
       }
     })
 
-    // ---------------------------------------------------------------- kick / ban
+    // kick / ban
 
     ctx.command({
       name: 'kick',
@@ -254,7 +255,7 @@ module.exports = {
       }
     })
 
-    // ---------------------------------------------------------------- mute / freeze / vanish
+    // mute / freeze / vanish
 
     ctx.command({
       name: 'mute',
@@ -332,7 +333,9 @@ module.exports = {
       }
     })
 
-    // ---------------------------------------------------------------- anti-spam
+    require('./more')(ctx, { find, findRecord, rankOf, checkHigher, actorName })
+
+    // anti-spam
 
     const spam = config.antiSpam
     if (spam && spam.enabled) {
