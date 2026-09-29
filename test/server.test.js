@@ -623,6 +623,8 @@ test('minigames: capture the flag', async (t) => {
   await op.waitForMessage(/has started/)
   const me = server.findPlayerExact('Op')
   const [enemyFlag, ownFlag] = me.data.team === 'red' ? [[40, 40], [10, 10]] : [[10, 10], [40, 40]]
+  // like a real client, first confirm the team spawn the round teleported us to
+  moveTo(op, me.feetPos.x, me.feetPos.y, me.feetPos.z); await sleep(50)
   moveTo(op, enemyFlag[0] + 0.5, 16, enemyFlag[1] + 0.5)
   await op.waitForMessage(/took the/)
   assert.equal(server.levels.main.getBlock(enemyFlag[0], 16, enemyFlag[1]), 0)
@@ -864,4 +866,41 @@ test('plugins can be turned off and back on, and it survives a restart', async (
   current.plugins.enable('warps')
   assert.ok(current.plugins.get('warps'))
   assert.deepEqual(current.config.disabledPlugins, [])
+})
+
+test('position packets sent before a teleport or level change arrived are ignored', async (t) => {
+  const { server } = await startServer({ owners: ['Runner'] })
+  t.after(() => server.stop())
+  await server.commands.execute(server.console, '/newlvl other 64 32 64 flat')
+  const c = await join(server, 'Runner')
+  const p = server.findPlayerExact('Runner')
+  const units = (x, y, z) => ({ id: -1, x: Math.round(x * 32), y: Math.round(y * 32) + 51, z: Math.round(z * 32), yaw: 0, pitch: 0 })
+
+  // walking around at (10, 17, 10)
+  c.send('position', units(10.5, 17, 10.5))
+  await sleep(100)
+  assert.equal(p.blockPos.x, 10)
+
+  // the server teleports the player, but a packet from the old spot is still on its way
+  p.teleport(40.5, 17, 40.5)
+  c.send('position', units(11, 17, 10.5))
+  await sleep(100)
+  assert.equal(p.blockPos.x, 40, 'the late packet did not pull the player back')
+
+  // once the client moves from the new spot everything is normal again
+  c.send('position', units(41.5, 17, 40.5))
+  c.send('position', units(12.5, 17, 12.5))
+  await sleep(100)
+  assert.equal(p.blockPos.x, 12)
+
+  // same after changing level: old coordinates don't leak into the new level
+  let moves = 0
+  server.events.on('playerMove', () => { moves++ })
+  p.changeLevel(server.levels.get('other'))
+  await c.waitFor(pk => pk.name === 'levelFinalize')
+  c.send('position', units(12.5, 17, 13))
+  await sleep(100)
+  assert.equal(moves, 0)
+  const spawn = server.levels.get('other').spawn
+  assert.equal(p.blockPos.x, Math.floor(spawn.x))
 })

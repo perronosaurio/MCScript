@@ -14,6 +14,9 @@
 - `staffChat` event, and `createConsoleActor` can take a rank.
 
 ### Fixed
+- Right after a teleport or a level change, movement packets the client had sent from its old position
+  were taken as its new position. That could fire portals, message blocks or parkour checkpoints in the
+  wrong place (walking into a portal could bounce you straight back). Those late packets are now ignored.
 - Several commands skipped rank checks for anything that was not a player (for example "only give ranks
   lower than your own"). They now compare permission levels, so actions from Discord or other relays follow
   the rank rules. The real console is unaffected.
