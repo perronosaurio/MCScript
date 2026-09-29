@@ -57,7 +57,7 @@ const EIGHT_BALL = [
 
 module.exports = function more (ctx, { find }) {
   const { server, text, CommandError } = ctx
-  const isOp = p => p.isConsole || p.permission >= server.ranks.permissionOf('Operator')
+  const isOp = p => p.permission >= server.ranks.permissionOf('Operator')
 
   // chat emotes: "(heart)" -> ♥
   ctx.on('playerChat', (ev) => {

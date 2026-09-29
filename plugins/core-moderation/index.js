@@ -70,7 +70,7 @@ module.exports = {
         const rank = ranks.get(args[1])
         if (!rank) throw new CommandError(`Unknown rank. Ranks: ${ranks.all.map(r => r.name).join(', ')}`)
         checkHigher(player, record)
-        if (!player.isConsole && rank.permission >= player.permission) throw new CommandError('You can only give ranks lower than your own.')
+        if (rank.permission >= player.permission) throw new CommandError('You can only give ranks lower than your own.')
         server.setRank(record.name, rank, actorName(player))
         server.broadcast(`&e${record.name} is now ${rank.color}${rank.name}&e.`)
       }
@@ -84,7 +84,7 @@ module.exports = {
       const i = all.indexOf(rankOf(record))
       const rank = all[i + dir]
       if (!rank) throw new CommandError(`${record.name} can't be ${dir > 0 ? 'promoted' : 'demoted'} any further.`)
-      if (!player.isConsole && rank.permission >= player.permission) throw new CommandError('You can only give ranks lower than your own.')
+      if (rank.permission >= player.permission) throw new CommandError('You can only give ranks lower than your own.')
       server.setRank(record.name, rank, actorName(player))
       server.broadcast(`&e${record.name} was ${dir > 0 ? 'promoted' : 'demoted'} to ${rank.color}${rank.name}&e.`)
     }
@@ -248,7 +248,7 @@ module.exports = {
       run (player, args, { usage }) {
         if (args.length < 2) return usage()
         const target = find(player, args[0])
-        if (!player.isConsole && target.permission >= player.permission && target !== player) throw new CommandError('You can only use /sudo on lower ranks.')
+        if (target.permission >= player.permission && target !== player) throw new CommandError('You can only use /sudo on lower ranks.')
         const line = args.slice(1).join(' ')
         if (line.startsWith('/')) server.commands.execute(target, line)
         else target.chat(line)

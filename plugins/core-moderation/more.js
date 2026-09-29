@@ -83,7 +83,7 @@ module.exports = function more (ctx, h) {
       const ms = text.parseDuration(args[2])
       if (!rank || !ms) return usage()
       checkHigher(player, record)
-      if (!player.isConsole && rank.permission >= player.permission) throw new CommandError('You can only give ranks lower than your own.')
+      if (rank.permission >= player.permission) throw new CommandError('You can only give ranks lower than your own.')
       const previous = record.tempRank ? record.tempRank.previous : rankOf(record).name
       server.setRank(record.name, rank, actorName(player))
       record.tempRank = { previous, until: Date.now() + ms, by: actorName(player) }
@@ -102,7 +102,7 @@ module.exports = function more (ctx, h) {
     description: 'Reports a player to the staff',
     run (player, args, { usage }) {
       const sub = (args[0] || '').toLowerCase()
-      const staff = player.isConsole || player.permission >= ranks.permissionOf('Operator')
+      const staff = player.permission >= ranks.permissionOf('Operator')
       if (sub === 'list' && staff) {
         if (!reports.length) return player.message('&eNo reports.')
         reports.slice(-15).forEach(r => player.message(`&f${r.target}&7 by ${r.by} (${text.formatDuration(Date.now() - r.at)} ago): ${r.reason}`))
@@ -216,8 +216,11 @@ module.exports = function more (ctx, h) {
 
   const staffChat = (minRank, label, color) => (sender, message) => {
     const perm = ranks.permissionOf(minRank)
-    server.broadcast(`${color}[${label}] ${sender.coloredName || sender.name}${color}: &f${text.sanitize(message)}`, p => p.permission >= perm)
+    message = text.sanitize(message)
+    server.broadcast(`${color}[${label}] ${sender.coloredName || sender.name}${color}: &f${message}`, p => p.permission >= perm)
     if (sender.isConsole !== true && sender.permission < perm) sender.message(`${color}[${label}] (sent)`)
+    // relays (Discord, IRC) forward this to their staff channel
+    server.events.fire('staffChat', { sender, message, channel: label.toLowerCase(), rank: minRank })
   }
   const opChat = staffChat('Operator', 'Op', '&c')
   const adminChat = staffChat('Admin', 'Admin', '&e')
