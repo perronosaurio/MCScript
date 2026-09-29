@@ -4,7 +4,7 @@
 
 // Two-way chat bridge with a Discord channel.
 //  - Outgoing only: set "webhookUrl" (Channel settings > Integrations > Webhooks).
-//  - Two-way: set "botToken" and "channelId" (needs Node 22+ and the "Message Content" intent enabled for the bot).
+//  - Two-way: set "botToken" and "channelId" (needs the "Message Content" intent enabled for the bot).
 // Disabled by default: set "enabled": true in config/plugins/relay-discord.json and /preload relay-discord.
 
 const API = 'https://discord.com/api/v10'

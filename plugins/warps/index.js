@@ -84,7 +84,7 @@ module.exports = {
       inGame: true,
       run (player, args) {
         const key = player.name.toLowerCase()
-        const homes = data.homes[key] || (data.homes[key] = {})
+        const homes = data.homes[key] || (data.homes[key] = Object.create(null))
         const sub = (args[0] || '').toLowerCase()
         const name = (args[1] || 'home').toLowerCase()
 

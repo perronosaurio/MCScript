@@ -48,7 +48,7 @@ module.exports = function parkour (ctx) {
         const time = Date.now() - run.started
         runs.delete(player)
         player.message('', 'status2')
-        const levelRecords = records[player.level.name] || (records[player.level.name] = {})
+        const levelRecords = records[player.level.name] || (records[player.level.name] = Object.create(null))
         const best = levelRecords[player.name.toLowerCase()]
         const top = Math.min(...Object.values(levelRecords), Infinity)
         if (!best || time < best) {

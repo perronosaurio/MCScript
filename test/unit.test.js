@@ -221,3 +221,38 @@ test('/calculate expression evaluator', () => {
   assert.throws(() => evaluate('process.exit()'))
   assert.throws(() => evaluate('1/0'))
 })
+
+test('async event handler errors are logged instead of crashing', async () => {
+  const errors = []
+  const bus = new EventBus({ error: (...args) => errors.push(args.join(' ')) })
+  bus.on('x', async () => { throw new Error('boom') }, { owner: 'p' })
+  bus.fire('x', {})
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(errors.length, 1)
+  assert.match(errors[0], /plugin p/)
+})
+
+test('player database treats prototype names as plain keys', () => {
+  const fs = require('fs')
+  const os = require('os')
+  const path = require('path')
+  const { PlayerDB } = require('../lib/storage/player-db')
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcscript-db-'))
+  const db = new PlayerDB(path.join(dir, 'players.json'))
+  assert.equal(db.get('constructor'), null)
+  const rec = db.getOrCreate('__proto__')
+  rec.logins++
+  assert.equal({}.logins, undefined)
+  assert.equal(db.get('__proto__'), rec)
+  db.flush()
+  assert.ok(Object.keys(JSON.parse(fs.readFileSync(path.join(dir, 'players.json'), 'utf8'))).includes('__proto__'))
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('plugin installer rejects unsafe input', async () => {
+  const installer = require('../lib/plugins/installer')
+  await assert.rejects(installer.installFromUrl('/nonexistent', 'http://example.com/p.js'), /https/)
+  await assert.rejects(installer.installFromNpm('/nonexistent', 'pkg && calc'), /Invalid package/)
+  await assert.rejects(installer.installFromNpm('/nonexistent', '--registry=https://evil'), /Invalid package/)
+  assert.throws(() => installer.uninstall('/nonexistent', '../../etc'), /Invalid plugin name/)
+})

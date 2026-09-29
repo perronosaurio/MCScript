@@ -5,8 +5,16 @@
   "main": "lib/index.js",
   "author": "perronosaurio",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/perronosaurio/MCScript.git"
+  },
+  "bugs": {
+    "url": "https://github.com/perronosaurio/MCScript/issues"
+  },
+  "homepage": "https://github.com/perronosaurio/MCScript#readme",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "scripts": {
     "start": "node index.js",

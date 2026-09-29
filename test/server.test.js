@@ -807,3 +807,38 @@ test('MCGalaxy style commands: levels and drawing', async (t) => {
   assert.equal(fin.x, 48)
   op.close()
 })
+
+test('connection limits and malformed input', async (t) => {
+  const { server } = await startServer({ maxConnectionsPerIp: 2 })
+  t.after(() => server.stop())
+
+  // reserved names are refused
+  const bad = new TestClient({ port: server.port, name: '__proto__' })
+  await bad.connect()
+  const kicked = await bad.waitFor('disconnect')
+  assert.match(kicked.reason, /Invalid username/)
+  bad.close()
+  await sleep(100)
+
+  // a third connection from the same address is dropped straight away
+  const sockets = []
+  for (let i = 0; i < 2; i++) {
+    const s = net.connect(server.port, '127.0.0.1')
+    await new Promise(resolve => s.once('connect', resolve))
+    sockets.push(s)
+  }
+  const third = net.connect(server.port, '127.0.0.1')
+  await new Promise(resolve => third.once('close', resolve))
+  sockets.forEach(s => s.destroy())
+  await sleep(100)
+
+  // unmasked WebSocket frames are rejected (RFC 6455)
+  const ws = net.connect(server.port, '127.0.0.1')
+  ws.resume() // keep reading, otherwise the close from the server is never noticed
+  await new Promise(resolve => ws.once('connect', resolve))
+  ws.write('GET / HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n')
+  await sleep(100)
+  ws.write(Buffer.from([0x82, 0x02, 0x00, 0x07]))
+  await new Promise(resolve => ws.once('close', resolve))
+  assert.equal(server.players.length, 0)
+})
