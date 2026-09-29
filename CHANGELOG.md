@@ -1,8 +1,11 @@
 # Changelog
 
-## 2.0.0 (unreleased)
+## Unreleased
 
-A rewrite of the whole server. The 1.x code in `src/` and `client.js` is no longer used.
+## 2.0.0
+
+MCScript is back after seven years. The server was rewritten from scratch; none of the 1.x code (`src/`,
+`client.js`) is left, but an old `levels/level.dat` is still converted on the first start.
 
 ### Added
 - Own Classic protocol 7 and CPE layer with 38 extensions, including BlockDefinitions, ExtendedBlocks,
@@ -14,6 +17,10 @@ A rewrite of the whole server. The 1.x code in `src/` and `client.js` is no long
 - Bundled plugins: essentials, moderation, worlds, building, custom blocks, warps, zones, portals, bots,
   physics, economy, minigames, effects, custom models, announcer, IRC and Discord relays, and a web panel.
 - Optional SQLite player database.
+- `/pdisable` and `/penable` (also on the web panel) turn bundled or installed plugins off and on, and the
+  choice is kept after a restart.
+- The web panel got a new look based on the ClassiCube forum.
+- The server checks GitHub for a newer release when it starts (`checkForUpdates`).
 
 ### Changed
 - Needs Node.js 22.13 or newer. No runtime dependencies.

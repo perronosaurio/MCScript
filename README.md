@@ -37,8 +37,9 @@ cd MCScript
 npm install
 ```
 
-Without git, download the ZIP from the green **Code** button on GitHub, unpack it and run `npm install` inside
-the folder. `npm install` only fetches the linter used for development; the server itself needs nothing else.
+Without git, download the zip of the latest version from the
+[releases page](https://github.com/perronosaurio/MCScript/releases), unpack it and run `npm install` inside the
+folder. `npm install` only fetches the linter used for development; the server itself needs nothing else.
 
 ## Your first server
 
@@ -128,11 +129,15 @@ git pull
 npm install
 ```
 
-Then restart the server. Your `config/`, `levels/` and `data/` folders are never touched by an update. Read
-[CHANGELOG.md](CHANGELOG.md) first; it lists anything you need to change.
+Then restart the server. Without git, download the latest zip from the
+[releases page](https://github.com/perronosaurio/MCScript/releases) and unpack it over your server folder.
+Your `config/`, `levels/` and `data/` folders are never touched by an update. Read the release notes (or
+[CHANGELOG.md](CHANGELOG.md)) first; they list anything you need to change. The server tells you in the
+console when a new release is out.
 
-Coming from MCScript 1.x: the old `levels/level.dat` is converted to `levels/main.cw` on the first start. The
-1.x code in `src/` and `client.js` isn't used any more and can be deleted.
+Coming from MCScript 1.x: install 2.x in a new folder and copy your old `levels/level.dat` into its `levels/`
+folder. It is converted to `levels/main.cw` on the first start. Players and ranks from 1.x were not saved, so
+there is nothing else to carry over.
 
 ## Features
 
@@ -184,10 +189,12 @@ anti-grief.
 | web-panel | admin panel in the browser (off by default) |
 | example | a commented example plugin |
 
-Core commands: `/help /plugins /plugin /pload /punload /preload /pcreate /pinstall /puninstall /cmdset /blockset /abort /stop /restart`.
+Core commands: `/help /plugins /plugin /penable /pdisable /pload /punload /preload /pcreate /pinstall /puninstall /cmdset /blockset /abort /stop /restart`.
 
-Add a plugin to `disabledPlugins` in `config/server.json` to turn it off. `relay-irc`, `relay-discord` and
-`web-panel` start disabled: set `"enabled": true` in their file in `config/plugins/` and run `/preload <plugin>`.
+Everything in this table can be turned off: use `/pdisable <plugin>` (and `/penable` to bring it back), the
+switches in the web panel, or `disabledPlugins` in `config/server.json`. The choice survives restarts.
+`relay-irc`, `relay-discord` and `web-panel` also need `"enabled": true` in their file in `config/plugins/`
+before they do anything; after editing it, run `/preload <plugin>`.
 
 ### Minigames
 
