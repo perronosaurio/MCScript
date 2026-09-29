@@ -1,6 +1,7 @@
 # Contributing
 
-Bug reports, fixes and new plugins are welcome.
+Bug reports, fixes and new plugins are welcome. Please read the [Code of Conduct](CODE_OF_CONDUCT.md) first;
+it applies to issues, pull requests and discussions.
 
 ## Setting up
 
