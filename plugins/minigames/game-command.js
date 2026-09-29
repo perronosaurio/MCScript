@@ -8,6 +8,18 @@ module.exports = function gameCommand (ctx, { name, aliases = [], title, metaKey
   const rounds = new Map() // level name -> Round
 
   const configured = () => [...server.levels.loaded.values()].filter(l => l.meta[metaKey])
+
+  // Arenas are remembered, so they are loaded at startup and /<game> join finds them from any level
+  const arenaData = ctx.loadData('arenas.json', {})
+  const arenas = new Set(arenaData[metaKey] || [])
+  const saveArenas = () => { arenaData[metaKey] = [...arenas].sort(); ctx.saveData('arenas.json', arenaData) }
+  const loadArena = (levelName) => {
+    const level = server.levels.get(levelName)
+    if (level) return level
+    if (!server.levels.exists(levelName)) return null
+    try { return server.levels.load(levelName) } catch (err) { ctx.log.warn(`Could not load ${title} arena ${levelName}: ${err.message}`); return null }
+  }
+  for (const levelName of arenas) loadArena(levelName)
   const roundFor = (level) => {
     let r = rounds.get(level.name)
     if (!r) { r = createRound(level); rounds.set(level.name, r) }
@@ -36,7 +48,7 @@ module.exports = function gameCommand (ctx, { name, aliases = [], title, metaKey
       switch (sub) {
         case 'join': {
           if (roundOf(player)) throw new CommandError(`You are already playing. Use /${name} leave`)
-          let level = args[1] ? server.levels.get(args[1]) : null
+          let level = args[1] ? loadArena(args[1]) : null
           if (!level) level = player.level.meta[metaKey] ? player.level : configured()[0]
           if (!level || !level.meta[metaKey]) throw new CommandError(`There is no ${title} arena. An operator can create one with /${name} enable`)
           return roundFor(level).join(player)
@@ -59,12 +71,16 @@ module.exports = function gameCommand (ctx, { name, aliases = [], title, metaKey
           needOp()
           player.level.meta[metaKey] = player.level.meta[metaKey] || {}
           player.level.dirty = true
+          arenas.add(player.level.name)
+          saveArenas()
           return player.message(`&a${player.level.name} is now a ${title} arena. Players join with &f/${name} join`)
         case 'disable':
           needOp()
           if (rounds.get(player.level.name)) rounds.get(player.level.name).end(null, 'Arena disabled')
           delete player.level.meta[metaKey]
           player.level.dirty = true
+          arenas.delete(player.level.name)
+          saveArenas()
           return player.message(`&a${player.level.name} is no longer a ${title} arena.`)
         case 'start': {
           needOp()

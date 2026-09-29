@@ -903,4 +903,29 @@ test('position packets sent before a teleport or level change arrived are ignore
   assert.equal(moves, 0)
   const spawn = server.levels.get('other').spawn
   assert.equal(p.blockPos.x, Math.floor(spawn.x))
+
+  // a level change followed by a teleport (what /warp does): normal moves near the new spot still count
+  p.changeLevel(server.levels.main)
+  p.teleport(30.5, 17, 30.5)
+  await c.waitFor(pk => pk.name === 'levelFinalize')
+  c.send('position', units(34.5, 17, 30.5))
+  await sleep(100)
+  assert.equal(p.blockPos.x, 34)
+})
+
+test('minigame arenas are remembered and loaded at startup', async (t) => {
+  const first = await startServer({ owners: ['Op'] })
+  await first.server.commands.execute(first.server.console, '/newlvl arena 64 32 64 flat')
+  const op = await join(first.server, 'Op')
+  await command(op, '/goto arena', 400)
+  assert.match(await command(op, '/zombie enable'), /now a Zombie Survival arena/)
+  op.close()
+  await first.server.stop()
+
+  const { server } = await startServer({}, first.root)
+  t.after(() => server.stop())
+  assert.ok(server.levels.get('arena'), 'the arena is loaded without anyone visiting it')
+  const guest = await join(server, 'Guest')
+  assert.doesNotMatch(await command(guest, '/zombie join', 400), /There is no/)
+  assert.equal(server.findPlayerExact('Guest').level.name, 'arena')
 })

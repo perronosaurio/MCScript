@@ -12,6 +12,8 @@
 - Tests that play ViaFabricPlus (ViaLegacy) and the vanilla Classic 0.30 client and check they only get
   packets they understand.
 - `staffChat` event, and `createConsoleActor` can take a rank.
+- Minigame arenas are remembered: levels enabled with `/tntwars enable`, `/ctf enable` or `/zombie enable` are
+  loaded at startup, so `/<game> join` works from any level. `/<game> join <level>` loads the arena if needed.
 
 ### Fixed
 - `/restart` under a supervisor (systemd, pm2, a start script loop) started a second copy of the server.
