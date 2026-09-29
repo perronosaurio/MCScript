@@ -2,8 +2,6 @@
 
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const fs = require('fs')
-const path = require('path')
 const zlib = require('zlib')
 
 const { Level } = require('../lib/level/level')
@@ -75,13 +73,19 @@ test('MCGalaxy .lvl import', () => {
   assert.equal(level.importWarnings.length, 1)
 })
 
-test('legacy MCScript level.dat import', { skip: !fs.existsSync(path.join(__dirname, '..', 'levels', 'level.dat')) }, () => {
-  const buf = fs.readFileSync(path.join(__dirname, '..', 'levels', 'level.dat'))
-  const level = Level.fromLegacyDat(buf, 'main')
-  assert.equal(level.volume, 256 * 64 * 256)
-  // the old generator made a bedrock floor
-  const floor = level.blocks.subarray(0, 256 * 256)
-  assert.ok(floor.filter(b => b === 7).length > floor.length * 0.9)
+test('legacy MCScript level.dat import', () => {
+  // 1.x format: gzip of a big-endian volume followed by the raw 256x64x256 blocks, bedrock at the bottom
+  const volume = 256 * 64 * 256
+  const raw = Buffer.alloc(4 + volume)
+  raw.writeInt32BE(volume, 0)
+  raw.fill(7, 4, 4 + 256 * 256)
+  raw.fill(2, 4 + 256 * 256, 4 + 2 * 256 * 256)
+  const level = Level.fromLegacyDat(zlib.gzipSync(raw), 'main')
+  assert.equal(level.volume, volume)
+  assert.equal(level.getBlock(10, 0, 10), 7)
+  assert.equal(level.getBlock(10, 1, 10), 2)
+  assert.equal(level.spawn.y, 2)
+  assert.throws(() => Level.fromLegacyDat(zlib.gzipSync(Buffer.alloc(8)), 'bad'), /Unexpected legacy level size/)
 })
 
 test('generators produce valid levels', () => {
