@@ -16,9 +16,10 @@ module.exports = {
 ```
 
 Every plugin in `plugins/` is loaded at startup, except the ones listed in `disabledPlugins` in
-`config/server.json`. In game you have `/plugins`, `/pload <name>`, `/punload <name>`, `/preload <name>` (reloads
-the code and the config) and `/pcreate <name>` (creates one from the template). `/plugin <list|load|unload|...>`
-works too, like in MCGalaxy.
+`config/server.json`. In game you have `/plugins`, `/penable <name>` and `/pdisable <name>` (on or off for good),
+`/pload <name>` and `/punload <name>` (until the next restart), `/preload <name>` (reloads the code and the
+config) and `/pcreate <name>` (creates one from the template). `/plugin <list|enable|disable|load|...>` works
+too, like in MCGalaxy.
 
 Anything you register through `ctx` (commands, event handlers, timers) is removed when the plugin is unloaded,
 so reloading a plugin never leaves duplicates behind.

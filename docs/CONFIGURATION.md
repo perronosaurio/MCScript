@@ -34,6 +34,7 @@ write its own copy over your changes on shutdown.
 | `disabledPlugins` | `[]` | Plugins that are not loaded at startup |
 | `customColors` | `{}` | Extra color codes, for example `{ "q": "#ff8800" }`. Managed with `/ccols` |
 | `database` | `json` | `json` or `sqlite`. See below |
+| `checkForUpdates` | `true` | Look for a newer MCScript release on GitHub at startup and say so in the console |
 | `logToFile` | `true` | Write logs to `logs/` |
 | `debug` | `false` | Extra log output |
 
@@ -87,6 +88,20 @@ defaults for some commands, so keep ranks with those names or adjust the command
 
 - `config/commands.json`: set with `/cmdset <command> <rank>`.
 - `config/blockperms.json`: set with `/blockset <block> <rank>`. Covers placing and deleting.
+
+## Turning plugins on and off
+
+Every feature beyond the core commands is a plugin, including the `core-*` ones, so you can switch off anything
+you don't want:
+
+- In game or in the console: `/pdisable <plugin>` and `/penable <plugin>` (Owner only). `/plugins` shows what
+  is on, off or broken.
+- In the web panel: the Turn off / Turn on links in the Plugins block.
+- By hand: list the plugin names in `disabledPlugins` in `server.json` while the server is stopped.
+
+All three do the same thing: the plugin is unloaded right away and stays off after a restart. Plugins that
+depend on another plugin are turned off with it. Commands from a plugin that is off simply don't exist, so
+`/help` never shows them.
 
 ## Plugin settings
 

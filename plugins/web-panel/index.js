@@ -80,7 +80,12 @@ module.exports = {
       maxPlayers: server.config.maxPlayers,
       memoryMB: Math.round(process.memoryUsage().rss / 1048576),
       levels: server.levels.loaded.size,
-      plugins: server.plugins.list().map(p => ({ name: p.name, version: p.module.version || null })),
+      plugins: [...server.plugins.discover().keys()].sort().map(key => {
+        const p = server.plugins.get(key)
+        return p
+          ? { name: p.name, version: p.module.version || null, description: p.module.description || '', loaded: true, disabled: false }
+          : { name: key, version: null, description: '', loaded: false, disabled: server.plugins.isDisabled(key) }
+      }),
       url: server.heartbeat.url
     })
 

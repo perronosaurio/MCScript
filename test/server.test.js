@@ -501,7 +501,7 @@ test('web panel: token auth, status, players and commands', async (t) => {
 
   const page = await fetch(base + '/')
   assert.equal(page.status, 200)
-  assert.match(await page.text(), /MCScript · Panel/)
+  assert.match(await page.text(), /MCScript · Server panel/)
   assert.equal((await fetch(base + '/api/status')).status, 401)
   assert.equal((await fetch(base + '/api/status', { headers: { Authorization: 'Bearer wrong-token!' } })).status, 401)
 
@@ -841,4 +841,27 @@ test('connection limits and malformed input', async (t) => {
   ws.write(Buffer.from([0x82, 0x02, 0x00, 0x07]))
   await new Promise(resolve => ws.once('close', resolve))
   assert.equal(server.players.length, 0)
+})
+
+test('plugins can be turned off and back on, and it survives a restart', async (t) => {
+  const { server, root } = await startServer({ owners: ['Boss'] })
+  let current = server
+  t.after(() => current.stop())
+  const boss = await join(server, 'Boss')
+
+  assert.match(await command(boss, '/pdisable warps'), /turned off/)
+  assert.equal(server.plugins.get('warps'), null)
+  assert.match(await command(boss, '/warp list'), /Unknown command/)
+  assert.deepEqual(server.config.disabledPlugins, ['warps'])
+  assert.match(await command(boss, '/plugins'), /&8warps/)
+  assert.match(await command(boss, '/pdisable nosuchplugin'), /not found/)
+  boss.close()
+  await server.stop()
+
+  // the setting was written to config/server.json
+  current = (await startServer({}, root)).server
+  assert.equal(current.plugins.get('warps'), null)
+  current.plugins.enable('warps')
+  assert.ok(current.plugins.get('warps'))
+  assert.deepEqual(current.config.disabledPlugins, [])
 })
