@@ -34,7 +34,7 @@ so reloading a plugin never leaves duplicates behind.
 | `ctx.command(def)` | registers a command (see below) |
 | `ctx.on(event, handler, { priority })` | listens to an event; returns a function that stops listening |
 | `ctx.setInterval(fn, ms)` / `ctx.setTimeout(fn, ms)` / `ctx.clearTimer(t)` | timers that are cleared on unload |
-| `ctx.loadData(file, defaults)` / `ctx.saveData(file, data)` | JSON files in `data/plugins/<name>/` |
+| `ctx.loadData(file, defaults)` / `ctx.saveData(file, data)` | JSON files in `data/plugins/<name>/`. Loaded objects have no prototype, so player-chosen keys such as `constructor` are safe to use |
 | `ctx.onUnload(fn)` | extra cleanup on unload |
 | `ctx.getPlugin(name)` | another plugin's API (its `module.exports.api`) |
 | `ctx.text` | text helpers: `wrap`, `sanitize`, `stripColors`, `parseColor`, `parseDuration`, `formatDuration`... |
@@ -166,7 +166,7 @@ Priorities run in this order: `critical`, `high`, `normal`, `low`, `monitor`. On
 
 ## Installing other people's plugins
 
-`/pinstall <url>` downloads a single file plugin (GitHub page links are turned into raw links) and
+`/pinstall <url>` downloads a single file plugin over HTTPS (GitHub page links are turned into raw links) and
 `/pinstall npm:package` installs one from npm into `plugins/<name>/`. `/puninstall <plugin>` moves it to
 `plugins/.removed`. Only Owners can use them. Only install code you trust.
 

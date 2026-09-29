@@ -1,46 +1,140 @@
 # MCScript
 
-A ClassiCube / Minecraft Classic server written in JavaScript. It speaks the classic protocol plus CPE, can run
-several levels at once, supports custom blocks and texture packs, and most features live in plugins, much like
+[![CI](https://github.com/perronosaurio/MCScript/actions/workflows/main.yml/badge.svg)](https://github.com/perronosaurio/MCScript/actions/workflows/main.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+A ClassiCube / Minecraft Classic server written in JavaScript. It speaks the classic protocol plus CPE, runs
+several levels at once, supports custom blocks and texture packs, and keeps most features in plugins, much like
 [MCGalaxy](https://github.com/ClassiCube/MCGalaxy).
 
-No runtime dependencies, just Node.js 20 or newer. Both the desktop [ClassiCube](https://github.com/ClassiCube/ClassiCube)
-client and the web client work (the web client connects over WebSocket on the same port). With `public` turned on
-the server shows up on the classicube.net server list and player names are verified.
+It has no runtime dependencies, only Node.js. Both the desktop [ClassiCube](https://github.com/ClassiCube/ClassiCube)
+client and the browser client work; the browser client connects over WebSocket on the same port.
 
-## Getting started
+- [Requirements](#requirements)
+- [Installing](#installing)
+- [Your first server](#your-first-server)
+- [Letting other people join](#letting-other-people-join)
+- [Keeping it running](#keeping-it-running)
+- [Updating](#updating)
+- [Features](#features)
+- [Bundled plugins](#bundled-plugins)
+- [Writing plugins](#writing-plugins)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+
+## Requirements
+
+- [Node.js](https://nodejs.org) 22.13 or newer. The current LTS release is the safest choice.
+- A ClassiCube account to join, from [classicube.net](https://www.classicube.net).
+
+## Installing
+
+With git:
 
 ```bash
-npm install   # only dev tools (linter)
+git clone https://github.com/perronosaurio/MCScript.git
+cd MCScript
+npm install
+```
+
+Without git, download the ZIP from the green **Code** button on GitHub, unpack it and run `npm install` inside
+the folder. `npm install` only fetches the linter used for development; the server itself needs nothing else.
+
+## Your first server
+
+```bash
 npm start
 ```
 
-On the first run these get created:
+The first start creates `config/`, `levels/`, `data/` and `logs/` and generates a flat main level. Then:
 
-| Path | What's in it |
-| --- | --- |
-| `config/server.json` | name, MOTD, port, max players, owners... |
-| `config/ranks.json` | ranks (Guest, Builder, AdvBuilder, Operator, Admin, Owner) |
-| `config/blockperms.json` | which rank can place/delete each block |
-| `config/commands.json` | command rank overrides (`/cmdset`) |
-| `config/plugins/*.json` | plugin settings |
-| `config/text/*.txt` | `/faq`, `/news`, `/oprules` and anything for `/view` |
-| `levels/*.cw` | levels, in ClassicWorld format |
-| `data/` | player data, global custom blocks, plugin data |
-| `logs/` | one log file per day |
+1. Stop the server with `stop` (or Ctrl+C).
+2. Open `config/server.json`, set `name` and `motd`, and put your ClassiCube name in `owners`:
+   ```json
+   "owners": ["YourName"]
+   ```
+3. Start it again with `npm start`.
+4. In ClassiCube pick **Direct connect**, enter your name and `127.0.0.1:25565`, and join. You get the Owner rank.
 
-You can also use environment variables or a `.env` file (see `.env.example`): `PORT`, `SERVER_NAME`, `MOTD`,
-`MAX_PLAYERS`, `PUBLIC`, `ONLINE_MODE`, `OWNERS`, `DATABASE`.
+The server console accepts commands, such as `/rank Someone Builder` or `/newlvl build 256 64 256 flat`. `stop`
+saves everything and shuts down.
 
-Put your ClassiCube name in `owners` to get the top rank. The console accepts commands (`/rank Someone Admin`)
-and `stop` shuts the server down after saving.
+Every setting is described in [docs/CONFIGURATION.md](docs/CONFIGURATION.md). You can also use environment
+variables or a `.env` file (copy `.env.example`).
 
-For big servers set `"database": "sqlite"` (needs Node 22.5+). Existing `players.json` data is imported the first time.
+## Letting other people join
 
-Upgrading from MCScript 1.x: the old `levels/level.dat` is converted to `levels/main.cw` on first start. The old
-code in `src/` and `client.js` is no longer used.
+1. Forward TCP port `25565` on your router to the computer running the server, and allow it through the firewall.
+2. Set `"public": true` in `config/server.json` and restart.
+3. After a minute the server shows up on the [classicube.net server list](https://www.classicube.net/server/list/).
+   The console prints its link, which is also saved in `data/externalurl.txt`.
 
-## What it does
+Keep `verifyNames` on. The server then checks with classicube.net that every player really owns their name,
+so nobody can join as you. Players must join through the server list or your server link; typing the IP by hand
+is refused. Connections from `127.0.0.1` are always allowed.
+
+If you would rather keep the server off the public list, leave `public` off and share the link from
+`data/externalurl.txt` with your friends. It works the same way.
+
+## Keeping it running
+
+On a VPS or a home server, run MCScript as a service so it restarts after crashes and reboots.
+
+**Linux with systemd.** Create `/etc/systemd/system/mcscript.service`, changing the user and path:
+
+```ini
+[Unit]
+Description=MCScript server
+After=network-online.target
+
+[Service]
+User=mcscript
+WorkingDirectory=/home/mcscript/MCScript
+ExecStart=/usr/bin/node index.js
+Restart=on-failure
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable --now mcscript
+journalctl -u mcscript -f     # live log
+```
+
+`KillSignal=SIGINT` gives the server time to save the levels when the service is stopped. Don't run the
+server as root.
+
+**Any system with pm2:**
+
+```bash
+npm install -g pm2
+pm2 start index.js --name mcscript --kill-timeout 10000
+pm2 save && pm2 startup
+```
+
+The console isn't available as a service. Use the web panel plugin or join the game to run commands.
+
+### Backups
+
+Levels are backed up automatically to `levels/backups/`. `/restore` brings one back in-game. For a complete
+backup, copy `config/`, `levels/` and `data/` while the server is stopped, or right after `/save all`.
+
+## Updating
+
+```bash
+git pull
+npm install
+```
+
+Then restart the server. Your `config/`, `levels/` and `data/` folders are never touched by an update. Read
+[CHANGELOG.md](CHANGELOG.md) first; it lists anything you need to change.
+
+Coming from MCScript 1.x: the old `levels/level.dat` is converted to `levels/main.cw` on the first start. The
+1.x code in `src/` and `client.js` isn't used any more and can be deleted.
+
+## Features
 
 Protocol
 - Classic 0.30 and 38 CPE extensions, including CustomBlocks, BlockDefinitions/BlockDefinitionsExt, ExtendedBlocks
@@ -48,22 +142,23 @@ Protocol
   EnvMapAspect, EnvWeatherType, ExtPlayerList, ChangeModel, CustomModels, CustomParticles, CinematicGui,
   SelectionCuboid, HackControl, MessageTypes, LongerMessages, FullCP437, TextColors, PlayerClick, VelocityControl,
   EntityProperty, PluginMessages, NotifyAction and ToggleBlockList.
-- Clients without an extension get sensible fallbacks (for example a replacement block for custom blocks).
+- Clients without an extension get sensible fallbacks, for example a replacement block for custom blocks.
 
 Levels
 - Several loaded at once. Generators: `flat`, `empty`, `pixel`, `space`, `ocean`, `island`, `terrain` (seeded).
-- ClassicWorld `.cw` files; MCGalaxy `.lvl` and the old `.dat` can be imported.
-- Autosave, periodic backups with `/restore`, deleted levels go to `levels/deleted`.
-- Per level: sky/fog/cloud/light colors, texture pack, weather, edge blocks, water level, MOTD hack flags
-  (`-hax +fly`), build and visit ranks, owners, physics, lockdown.
+- ClassicWorld `.cw` files. MCGalaxy `.lvl` and the old `.dat` can be imported with `/import`.
+- Autosave, periodic backups with `/restore`. Deleted levels go to `levels/deleted`.
+- Per level: sky, fog, cloud and light colors, texture pack, weather, edge blocks, water level, MOTD hack flags
+  (`-hax +fly`), build and visit ranks, owners, physics and lockdown.
 - Block history is written to disk, so `/about` and `/undoplayer` still work after a restart.
 
-Custom blocks: `/gb` for all levels and `/lb` for one level. Name, textures per face, shape, collision, speed, sound,
-light, transparency, fog and fallback block. A few presets are included (invisible barrier, lamp, glass pane,
-ladder, carpet, slabs, speed pad...).
+Custom blocks: `/gb` for every level and `/lb` for one level. Name, textures per face, shape, collision, speed,
+sound, light, transparency, fog and fallback block. Presets included: invisible barrier, lamp, glass pane,
+ladder, carpet, slabs, speed pad and more.
 
-Players and moderation: numeric rank permissions, draw and undo limits per rank, temp bans and IP bans, mutes,
-warnings, temp ranks, reports, whitelist, moderated chat, staff chats, freeze, vanish, anti-spam and anti-grief.
+Players and moderation: numeric rank permissions, draw and undo limits per rank, temporary and IP bans, mutes,
+warnings, temporary ranks, reports, whitelist, moderated chat, staff chats, freeze, vanish, anti-spam and
+anti-grief.
 
 ## Bundled plugins
 
@@ -96,13 +191,14 @@ Add a plugin to `disabledPlugins` in `config/server.json` to turn it off. `relay
 
 ### Minigames
 
-An operator turns a level into an arena and players join with `/<game> join`.
+An operator turns a level into an arena, and players join with `/<game> join`.
 
 - Parkour: `/parkour setstart`, `/parkour addcheckpoint`, `/parkour setfinish` (mark the blocks you stand on).
   Timer, checkpoints and records with `/parkour top`.
-- TNT Wars: `/tntwars enable`, `/tntwars setspawn red|blue`. Right click to drop TNT, first team to the score limit wins.
-- Capture the Flag: `/ctf enable`, `/ctf setflag red|blue`, `/ctf setspawn red|blue`. Take the other team's flag
-  home; click an enemy to tag them.
+- TNT Wars: `/tntwars enable`, `/tntwars setspawn red|blue`. Right click to drop TNT. The first team to reach
+  the score limit wins.
+- Capture the Flag: `/ctf enable`, `/ctf setflag red|blue`, `/ctf setspawn red|blue`. Bring the other team's
+  flag home; click an enemy to tag them.
 - Zombie Survival: `/zombie enable`. One player starts as a zombie and infects others by touching them.
 
 The arena is restored after each round, and with the economy plugin the winners get coins.
@@ -110,7 +206,8 @@ The arena is restored after each round, and with the economy plugin the winners 
 ### Web panel
 
 With `web-panel` enabled it listens on `127.0.0.1:8080`. Open `http://127.0.0.1:8080/` and log in with the token
-from `config/plugins/web-panel.json` to see players, levels, plugins, the live log and a console.
+from `config/plugins/web-panel.json` to see players, levels, plugins, the live log and a console. The token
+gives full console access. If you open the panel to the internet, put it behind HTTPS.
 
 ## Writing plugins
 
@@ -137,7 +234,30 @@ module.exports = {
 ```
 
 Other people's plugins can be installed with `/pinstall https://github.com/user/repo/blob/main/plugin.js` or
-`/pinstall npm:package-name` (install scripts are not run). The full API is in [docs/PLUGINS.md](docs/PLUGINS.md).
+`/pinstall npm:package-name` (install scripts are not run). A plugin runs with the same rights as the server,
+so only install code you trust. The full API is in [docs/PLUGINS.md](docs/PLUGINS.md).
+
+## Troubleshooting
+
+**"MCScript needs Node.js 22.13 or newer".** Install the current LTS from [nodejs.org](https://nodejs.org).
+`node -v` shows the version you have.
+
+**`EADDRINUSE` on start.** Something else is using port 25565, often another server that's still running.
+Stop it or change `port`.
+
+**"Login failed! Close the game and sign in again."** Name verification failed. Join from the server list or
+the server link rather than direct connect. After a restart, wait for the first heartbeat (a few seconds)
+before joining.
+
+**The server isn't on the list.** Check that `public` is `true` and look for heartbeat errors in the console. A
+message about the port means it isn't reachable from outside: check the port forwarding and the firewall.
+
+**Friends on the same network can't join.** Local network addresses are verified like everyone else, so use
+the server link. For a LAN-only game you can set `verifyNames` to `false`, but then anyone who can reach the
+port can pick any name.
+
+**A plugin broke.** Its errors are in the console and in `logs/`. `/punload <plugin>` turns it off until the
+next restart. Add it to `disabledPlugins` to keep it off.
 
 ## Development
 
@@ -159,4 +279,12 @@ lib/
   storage/            player database (JSON or SQLite)
 plugins/              bundled plugins
 test/                 tests
+docs/                 configuration and plugin API guides
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and [SECURITY.md](SECURITY.md) to
+report a security problem privately.
+
+## License
+
+[MIT](LICENSE). MCScript isn't affiliated with Mojang, Microsoft or the ClassiCube project.
