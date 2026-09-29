@@ -69,7 +69,7 @@ module.exports = {
     }
 
     function checkVolume (player, volume) {
-      const limit = player.isConsole ? Infinity : player.rank.drawLimit
+      const limit = player.permission === Infinity ? Infinity : player.rank.drawLimit
       if (volume > limit) throw new CommandError(`You tried to change ${volume.toLocaleString()} blocks, your limit is ${Number(limit).toLocaleString()}.`)
     }
 
@@ -126,7 +126,7 @@ module.exports = {
         if (!level.inBounds(x, y, z)) continue
         const old = level.getBlock(x, y, z)
         if (old === block) continue
-        if (!player.isConsole && !server.blockPerms.canDelete(player, old)) { denied.add(old); continue }
+        if (!server.blockPerms.canDelete(player, old)) { denied.add(old); continue }
         allowed.push(c)
       }
       const ev = server.events.fire('drawOperation', { player, level, changes: allowed, name: opName })
@@ -466,7 +466,7 @@ module.exports = {
         if (!self) {
           if (player.permission < server.ranks.permissionOf('Operator')) throw new CommandError('Only operators can undo other players.')
           const record = server.playerDB.get(target)
-          if (record && !player.isConsole && (server.ranks.get(record.rank) || server.ranks.default).permission >= player.permission) {
+          if (record && (server.ranks.get(record.rank) || server.ranks.default).permission >= player.permission) {
             throw new CommandError(`You can't undo ${target}'s changes, their rank is not lower than yours.`)
           }
         }

@@ -21,7 +21,7 @@ module.exports = {
       x >= zn.x1 && x <= zn.x2 && y >= zn.y1 && y <= zn.y2 && z >= zn.z1 && z <= zn.z2)
 
     const canBuildIn = (player, zone) => {
-      if (player.isConsole) return true
+      if (player.permission === Infinity) return true // the console
       if (zone.owners && zone.owners.includes(player.name.toLowerCase())) return true
       return player.permission >= server.ranks.permissionOf(zone.rank)
     }
