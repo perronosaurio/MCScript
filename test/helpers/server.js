@@ -12,10 +12,7 @@ const REPO = path.join(__dirname, '..', '..')
 async function startServer (overrides = {}, root = null, pluginConfigs = {}) {
   if (!root) {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'mcscript-test-'))
-    fs.cpSync(path.join(REPO, 'plugins'), path.join(root, 'plugins'), {
-      recursive: true,
-      filter: src => !src.endsWith('test.js')
-    })
+    fs.cpSync(path.join(REPO, 'plugins'), path.join(root, 'plugins'), { recursive: true })
   }
   for (const [name, cfg] of Object.entries(pluginConfigs)) {
     fs.mkdirSync(path.join(root, 'config', 'plugins'), { recursive: true })
