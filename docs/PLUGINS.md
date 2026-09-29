@@ -100,6 +100,7 @@ Priorities run in this order: `critical`, `high`, `normal`, `low`, `monitor`. On
 | `explosion` | `level, x, y, z, radius` (physics plugin) | |
 | `pluginMessage` | `player, channel, data` (64 byte Buffer, CPE PluginMessages) | |
 | `notifyAction` | `player, action, value` or `position` (CPE NotifyAction: `blockListSelected`, `levelSaved`, `thirdPersonChanged`...) | |
+| `staffChat` | `sender, message, channel` (`op` or `admin`), `rank` (the Discord bot forwards it) | |
 | `pluginLoad` / `pluginUnload` | `plugin` | |
 | `serverStart` / `serverStop` | `server` | |
 
@@ -122,7 +123,11 @@ Priorities run in this order: `critical`, `high`, `normal`, `low`, `monitor`. On
   `plugins/custom-models/index.js`) and `server.removeModel(name)`.
 - Particles: `server.defineParticle(name, { tint, count, size, speed, gravity, lifetime, ... })` and
   `server.spawnParticles(level, name, x, y, z)`.
-- `server.createConsoleActor(name, onMessage)`: runs commands with console rights and captures what they print.
+- `server.createConsoleActor(name, onMessage, { rank })`: something that runs commands without being in the game
+  and captures what they print. Without `rank` it has console rights; with a rank it can do exactly what that
+  rank can (the Discord bot uses this).
+- `server.heartbeats`: the server lists it announces itself on (`label`, `url`, `nameSuffix`...);
+  `player.verifiedVia` says which one vouched for a player.
 - `server.log.subscribe(fn)`: receives every log line.
 - `server.config` and `server.saveConfig()`.
 

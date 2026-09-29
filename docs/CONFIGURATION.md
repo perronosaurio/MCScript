@@ -18,6 +18,7 @@ write its own copy over your changes on shutdown.
 | `verifyNames` | `true` | Check with classicube.net that players are who they say they are |
 | `heartbeatUrl` | classicube.net | Where heartbeats are sent |
 | `heartbeatInterval` | `45` | Seconds between heartbeats |
+| `extraHeartbeats` | `[]` | More server lists to announce the server on, such as BetaCraft. See below |
 | `allowWebClient` | `true` | Accept the browser client (WebSocket on the same port) |
 | `trustProxy` | `false` | Use the `X-Forwarded-For` header as the player IP. Only turn this on behind your own reverse proxy |
 | `mainLevel` | `main` | Level players spawn in |
@@ -66,6 +67,42 @@ classicube.net, and the server checks it on login. That stops people from joinin
 Connections from `127.0.0.1` skip the check, so you can always join your own server locally. Players who type
 the IP address by hand, without going through classicube.net, are refused. Turn `verifyNames` off only for
 private LAN games. With it off, anyone can join as anyone, including as one of the `owners`.
+
+## BetaCraft and other server lists
+
+The server can be listed on more than one server list at the same time, like MCGalaxy. Add them to
+`extraHeartbeats`. For [BetaCraft](https://betacraft.uk), which lets people play with the original Minecraft
+Classic 0.30 client and a Minecraft account:
+
+```json
+"extraHeartbeats": [
+  { "url": "<BetaCraft heartbeat URL>", "nameSuffix": "+", "mojangAuth": true }
+]
+```
+
+Get the heartbeat address from betacraft.uk. Each entry takes:
+
+- `url`: where to send the heartbeat. Every list gets its own salt, and a player is accepted if their key
+  matches any of them.
+- `nameSuffix`: added to the name of everyone who logs in through that list. `Notch` on ClassiCube and `Notch`
+  on BetaCraft are different people; with `"+"` the BetaCraft one becomes `Notch+`, so they never share ranks,
+  bans or data. Use it whenever you have more than one list.
+- `skinPrefix`: put in front of the skin name of those players, if their skins come from somewhere else.
+- `mojangAuth`: also accept players that Mojang's session server vouches for. BetaCraft's launcher signs in
+  with a Minecraft account and tells Mojang it is joining before it connects; this is how the server checks it.
+
+Owners and ranks refer to the full name, so a BetaCraft owner goes in `owners` as `Name+`.
+
+## Clients
+
+- **ClassiCube** (desktop, mobile and browser) gets everything.
+- **ViaFabricPlus** (a mod that lets modern Minecraft Java join classic servers) understands only a few CPE
+  extensions. The server notices and falls back automatically: custom blocks become their fallback block,
+  and particles, models, environment colors and similar features are simply not sent.
+- **Minecraft Classic 0.30** (for example from the BetaCraft launcher) works without any extensions.
+
+Older Classic versions (before 0.30) use a different protocol and can't join. With ViaFabricPlus, choose the
+Classic 0.30 version with CPE in its version list.
 
 ## Ranks (config/ranks.json)
 

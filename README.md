@@ -8,7 +8,10 @@ several levels at once, supports custom blocks and texture packs, and keeps most
 [MCGalaxy](https://github.com/ClassiCube/MCGalaxy).
 
 It has no runtime dependencies, only Node.js. Both the desktop [ClassiCube](https://github.com/ClassiCube/ClassiCube)
-client and the browser client work; the browser client connects over WebSocket on the same port.
+client and the browser client work; the browser client connects over WebSocket on the same port. Players can
+also join with [ViaFabricPlus](https://github.com/ViaVersion/ViaFabricPlus) (modern Minecraft Java) or the
+original Classic 0.30 client from [BetaCraft](https://betacraft.uk), and the server can be listed on both
+classicube.net and BetaCraft.
 
 - [Requirements](#requirements)
 - [Installing](#installing)
@@ -185,7 +188,7 @@ anti-grief.
 | custom-models | `/cmodel` (example 3D models plus your own JSON ones, used with `/model`) |
 | announcer | `/announcer` |
 | relay-irc | IRC chat bridge (off by default) |
-| relay-discord | Discord chat bridge, webhook or bot (off by default) |
+| relay-discord | Discord bot: chat channel, staff channel and `!commands`, like MCGalaxy's ([guide](docs/DISCORD.md), off by default) |
 | web-panel | admin panel in the browser (off by default) |
 | example | a commented example plugin |
 

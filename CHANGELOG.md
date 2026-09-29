@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Added
+- The Discord bot now works like MCGalaxy's: chat channels, staff channels linked to `/opchat`, and
+  `!command` from Discord with ranks given by Discord roles or users (`roleRanks`, `userRanks`).
+  `!players` / `.who` list who is online, the bot shows the player count as its status, and `/discord` shows
+  an invite link. Setup guide in `docs/DISCORD.md`.
+- `extraHeartbeats`: announce the server on more lists at once (BetaCraft), each with its own salt, an
+  optional name suffix and Mojang session checks for Minecraft accounts.
+- Tests that play ViaFabricPlus (ViaLegacy) and the vanilla Classic 0.30 client and check they only get
+  packets they understand.
+- `staffChat` event, and `createConsoleActor` can take a rank.
+
+### Fixed
+- Several commands skipped rank checks for anything that was not a player (for example "only give ranks
+  lower than your own"). They now compare permission levels, so actions from Discord or other relays follow
+  the rank rules. The real console is unaffected.
+
 ## 2.0.0
 
 MCScript is back after seven years. The server was rewritten from scratch; none of the 1.x code (`src/`,
