@@ -1,0 +1,11 @@
+* text=auto eol=lf
+*.cw binary
+*.lvl binary
+*.dat binary
+*.png binary
+
+# left out of release archives (git archive)
+/.github export-ignore
+/test export-ignore
+/.editorconfig export-ignore
+/.gitattributes export-ignore

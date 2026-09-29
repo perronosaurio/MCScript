@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCScript · Server panel</title>
+<style>
+  /* Laid out like the phpBB board at f.classicube.net: banner, breadcrumb bar, category blocks.
+     Colors are grouped here so they are easy to change. */
+  :root {
+    --page: #e9ecef; --wrap: #ffffff; --wrap-line: #c9d0d6;
+    --banner: #1f2a36; --banner-2: #2e3e4f; --banner-ink: #ffffff; --banner-muted: #b8c4cf;
+    --navbar: #d7dee4; --navbar-line: #bcc6cf;
+    --cat: #34495e; --cat-2: #3f5870; --cat-ink: #ffffff;
+    --row1: #f4f6f8; --row2: #e8edf1; --row-line: #ffffff;
+    --ink: #2d3842; --muted: #66727d; --link: #1b5e8c; --link-hover: #c0392b;
+    --grass: #5a9e32; --dirt: #8b5a2b; --on: #3c8d2f; --off: #9aa3ab; --err: #b33a2e;
+    --console: #1a1d21; --console-ink: #dfe3e6;
+    --mono: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 12px; background: var(--page); color: var(--ink); font: 13px/1.45 Verdana, "Trebuchet MS", Helvetica, Arial, sans-serif; }
+  a, .link { color: var(--link); text-decoration: none; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; }
+  a:hover, .link:hover { color: var(--link-hover); text-decoration: underline; }
+  #wrap { max-width: 1152px; margin: 0 auto; background: var(--wrap); border: 1px solid var(--wrap-line); border-radius: 8px; padding: 10px; }
+
+  .banner { display: flex; gap: 14px; align-items: center; padding: 12px 14px; border-radius: 7px; background: linear-gradient(180deg, var(--banner-2), var(--banner)); color: var(--banner-ink); }
+  .cube { width: 46px; height: 46px; flex: none; border-radius: 4px; background: linear-gradient(180deg, var(--grass) 0 32%, var(--dirt) 32% 100%); box-shadow: inset 0 0 0 2px rgba(0,0,0,.25), inset 0 -8px 0 rgba(0,0,0,.12); }
+  .banner h1 { margin: 0; font: bold 21px/1.2 "Trebuchet MS", Arial, sans-serif; }
+  .banner p { margin: 2px 0 0; color: var(--banner-muted); }
+  .banner .who { margin-left: auto; text-align: right; color: var(--banner-muted); font-size: 12px; }
+  .banner .who .link { color: var(--banner-ink); }
+
+  .navbar { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; margin: 8px 0; padding: 6px 10px; background: var(--navbar); border: 1px solid var(--navbar-line); border-radius: 7px; font-size: 12px; }
+  .crumbs b { color: var(--ink); }
+  .crumbs span + span:not(:empty)::before { content: "‹ "; color: var(--muted); padding: 0 2px; }
+
+  .forabg { margin-bottom: 10px; border-radius: 7px; background: linear-gradient(180deg, var(--cat-2), var(--cat)); padding: 0 5px 5px; }
+  .forabg > .head { display: flex; align-items: baseline; gap: 10px; padding: 7px 5px 6px; color: var(--cat-ink); }
+  .forabg > .head h2 { margin: 0; font: bold 12px "Trebuchet MS", Arial, sans-serif; text-transform: uppercase; letter-spacing: .03em; }
+  .forabg > .head .hint { margin-left: auto; font-size: 11px; opacity: .8; }
+  .inner { background: var(--row1); border-radius: 5px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font: bold 11px "Trebuchet MS", Arial, sans-serif; text-transform: uppercase; color: var(--muted); padding: 5px 8px; background: var(--row2); white-space: nowrap; }
+  td { padding: 6px 8px; border-top: 1px solid var(--row-line); vertical-align: middle; white-space: nowrap; }
+  tbody tr:nth-child(odd) td { background: var(--row1); }
+  tbody tr:nth-child(even) td { background: var(--row2); }
+  td.num, th.num { text-align: center; font-variant-numeric: tabular-nums; }
+  td.main { width: 100%; white-space: normal; }
+  td.main .title { font-weight: bold; font-size: 13px; }
+  td.main .desc { color: var(--muted); font-size: 11px; }
+  .icon { width: 22px; height: 22px; border-radius: 3px; display: inline-block; vertical-align: middle; background: var(--off); }
+  .icon.on { background: linear-gradient(180deg, var(--grass) 0 35%, var(--dirt) 35%); }
+  .empty td { color: var(--muted); font-style: italic; }
+  .tag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 3px; font-size: 10px; font-weight: bold; text-transform: uppercase; background: var(--off); color: #fff; }
+  .tag.on { background: var(--on); }
+  .actions { text-align: right; }
+  .actions .link + .link { margin-left: 10px; }
+
+  #log { height: 380px; overflow-y: auto; margin: 0; padding: 8px 10px; background: var(--console); color: var(--console-ink); font: 12px/1.45 var(--mono); border-radius: 5px 5px 0 0; }
+  #log div { white-space: pre-wrap; word-break: break-word; }
+  #log .t { color: #6b737b; margin-right: 6px; }
+  #log .warn { color: #e0a33a; } #log .error { color: #ff6b5f; }
+  .postbox { display: flex; gap: 6px; padding: 6px; background: var(--row2); border-radius: 0 0 5px 5px; }
+  input[type=text], input[type=password] { flex: 1; min-width: 0; padding: 5px 7px; border: 1px solid var(--wrap-line); border-radius: 4px; font: 13px var(--mono); background: #fff; color: var(--ink); }
+  .button { padding: 4px 12px; border: 1px solid #9aa7b3; border-radius: 4px; background: linear-gradient(180deg, #fff, #e3e8ec); color: var(--ink); font: bold 12px "Trebuchet MS", Arial, sans-serif; cursor: pointer; }
+  .button:hover { border-color: var(--link); color: var(--link); }
+  :focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+
+  .stats { padding: 8px 10px; background: var(--row1); border-radius: 5px; }
+  .stats h3 { margin: 0 0 4px; font: bold 12px "Trebuchet MS", Arial, sans-serif; color: var(--ink); border-bottom: 1px solid var(--wrap-line); padding-bottom: 3px; }
+  .stats p { margin: 4px 0; }
+  .copyright { padding: 8px; text-align: center; color: var(--muted); font-size: 11px; }
+
+  #login { max-width: 420px; margin: 10vh auto 0; }
+  #login .inner { padding: 12px; }
+  #login p { margin: 0 0 8px; }
+  #login form { display: flex; gap: 6px; }
+  .err { color: var(--err); min-height: 1.4em; margin-top: 6px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 700px) { .banner .who { display: none; } .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<div id="login" class="forabg" hidden>
+  <div class="head"><h2>Log in to the server panel</h2></div>
+  <div class="inner">
+    <p>Paste the token from <code>config/plugins/web-panel.json</code>.</p>
+    <form id="loginForm"><input id="token" type="password" placeholder="Token" autocomplete="off"><button class="button">Login</button></form>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<div id="wrap" hidden>
+  <div class="banner">
+    <div class="cube" aria-hidden="true"></div>
+    <div>
+      <h1 id="name"></h1>
+      <p id="motd"></p>
+    </div>
+    <div class="who">MCScript <span id="sVer"></span><br><button class="link" id="logout" type="button">Logout</button></div>
+  </div>
+
+  <div class="navbar">
+    <div class="crumbs"><span><b>Panel index</b></span><span id="crumbUrl"></span></div>
+    <div id="uptime"></div>
+  </div>
+
+  <div class="forabg">
+    <div class="head"><h2>Who is online</h2><span class="hint" id="onlineCount"></span></div>
+    <div class="inner"><table>
+      <thead><tr><th></th><th>Player</th><th>Rank</th><th class="hide-sm">Level</th><th class="num">Ping</th><th class="hide-sm">Client</th><th></th></tr></thead>
+      <tbody id="players"></tbody>
+    </table></div>
+  </div>
+
+  <div class="forabg">
+    <div class="head"><h2>Levels</h2><span class="hint">Load, unload and save</span></div>
+    <div class="inner"><table>
+      <thead><tr><th></th><th>Level</th><th class="num">Players</th><th class="num hide-sm">Size</th><th></th></tr></thead>
+      <tbody id="levels"></tbody>
+    </table></div>
+  </div>
+
+  <div class="forabg">
+    <div class="head"><h2>Plugins</h2><span class="hint">Turning a plugin off keeps it off after a restart</span></div>
+    <div class="inner"><table>
+      <thead><tr><th></th><th>Plugin</th><th class="num hide-sm">Version</th><th></th></tr></thead>
+      <tbody id="plugins"></tbody>
+    </table></div>
+  </div>
+
+  <div class="forabg">
+    <div class="head"><h2>Console</h2><span class="hint">Commands run with console rights</span></div>
+    <div id="log" aria-live="polite"></div>
+    <form class="postbox" id="cmdForm"><input id="cmd" type="text" placeholder="/command or a chat message" autocomplete="off"><button class="button">Submit</button></form>
+  </div>
+
+  <div class="stats">
+    <h3>Statistics</h3>
+    <p id="statsLine"></p>
+  </div>
+  <div class="copyright">Powered by MCScript · <a href="https://github.com/perronosaurio/MCScript" rel="noopener">GitHub</a></div>
+</div>
+
+<script>
+(() => {
+  // ClassiCube chat colors, for the dark console and for names on the light rows
+  const DARK_BG = { 0: '#8a8f96', 1: '#6f7dff', 2: '#3fbf3f', 3: '#3fbfbf', 4: '#e2574c', 5: '#cf5fcf', 6: '#d9b43c', 7: '#bfbfbf', 8: '#8a8f96', 9: '#6b6bff', a: '#58e858', b: '#58e8e8', c: '#ff5a5a', d: '#ff6aff', e: '#f0f060', f: '#ffffff' }
+  const LIGHT_BG = { 0: '#000000', 1: '#0000aa', 2: '#008a00', 3: '#008a8a', 4: '#aa0000', 5: '#8a008a', 6: '#a67c00', 7: '#6b6b6b', 8: '#555555', 9: '#4040d0', a: '#2e9e2e', b: '#1d8f9f', c: '#d03030', d: '#b030b0', e: '#9a8a00', f: '#2d3842' }
+  let token = ''
+  try { token = sessionStorage.getItem('mcscript-token') || '' } catch (e) {}
+  let since = 0
+  const $ = id => document.getElementById(id)
+
+  // "&cRed &fwhite" -> colored text nodes (never parsed as HTML)
+  function colored (text, palette = LIGHT_BG) {
+    const frag = document.createDocumentFragment()
+    let color = null
+    for (const part of String(text).split(/(&[0-9a-f])/i)) {
+      const m = part.match(/^&([0-9a-f])$/i)
+      if (m) { color = palette[m[1].toLowerCase()]; continue }
+      if (!part) continue
+      const span = document.createElement('span')
+      span.textContent = part
+      if (color) span.style.color = color
+      frag.appendChild(span)
+    }
+    return frag
+  }
+
+  async function api (path, opts = {}) {
+    const res = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token } })
+    if (res.status === 401) { showLogin('Wrong token.'); throw new Error('unauthorized') }
+    return res.json()
+  }
+
+  function showLogin (msg) {
+    $('wrap').hidden = true; $('login').hidden = false; $('loginErr').textContent = msg || ''
+  }
+
+  function duration (ms) {
+    const s = Math.floor(ms / 1000); const d = Math.floor(s / 86400); const h = Math.floor(s % 86400 / 3600); const m = Math.floor(s % 3600 / 60)
+    return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`
+  }
+
+  function el (tag, props = {}, ...children) {
+    const e = document.createElement(tag)
+    Object.assign(e, props)
+    e.append(...children)
+    return e
+  }
+
+  function link (label, command) {
+    return el('button', { type: 'button', className: 'link', textContent: label, onclick: () => send(command) })
+  }
+
+  function mainCell (title, desc) {
+    const td = el('td', { className: 'main' })
+    td.append(el('div', { className: 'title' }, title))
+    if (desc) td.append(el('div', { className: 'desc' }, desc))
+    return td
+  }
+
+  function fill (tbody, rows, emptyText, cols) {
+    tbody.replaceChildren(...rows)
+    if (!rows.length) tbody.append(el('tr', { className: 'empty' }, el('td', { colSpan: cols, textContent: emptyText })))
+  }
+
+  async function refresh () {
+    const [st, players, levels] = await Promise.all([api('/api/status'), api('/api/players'), api('/api/levels')])
+    $('name').replaceChildren(colored(st.name, DARK_BG))
+    $('motd').replaceChildren(colored(st.motd, DARK_BG))
+    $('sVer').textContent = st.version
+    $('uptime').textContent = `Up for ${duration(st.uptime)}`
+    $('crumbUrl').replaceChildren()
+    if (st.url) $('crumbUrl').append(el('a', { href: st.url, target: '_blank', rel: 'noopener', textContent: 'Server list page' }))
+    $('onlineCount').textContent = `${st.players} of ${st.maxPlayers}`
+    $('statsLine').textContent = `Players online ${st.players} • Levels loaded ${st.levels} • Plugins ${st.plugins.filter(p => p.loaded).length} • Memory ${st.memoryMB} MB`
+
+    fill($('players'), players.map(p => {
+      const name = el('span', {}, colored(p.color + p.name))
+      if (p.afk) name.append(el('span', { className: 'tag', textContent: 'AFK' }))
+      return el('tr', {},
+        el('td', {}, el('span', { className: 'icon on' })),
+        mainCell(name, `Online for ${duration(p.online)}`),
+        el('td', { textContent: p.rank }),
+        el('td', { className: 'hide-sm', textContent: p.level || '' }),
+        el('td', { className: 'num', textContent: p.ping ?? '–' }),
+        el('td', { className: 'hide-sm', textContent: p.client + (p.web ? ' (web)' : '') }),
+        el('td', { className: 'actions' }, link('Kick', `/kick ${p.name}`)))
+    }), 'Nobody is online right now.', 7)
+
+    fill($('levels'), levels.map(l => {
+      const actions = el('td', { className: 'actions' })
+      if (!l.loaded) actions.append(link('Load', `/load ${l.name}`))
+      if (l.loaded) actions.append(link('Save', `/save ${l.name}`))
+      if (l.loaded && !l.main) actions.append(link('Unload', `/unload ${l.name}`))
+      return el('tr', {},
+        el('td', {}, el('span', { className: 'icon' + (l.loaded ? ' on' : '') })),
+        mainCell(l.name + (l.main ? ' (main)' : ''), l.loaded ? 'Loaded' : 'On disk'),
+        el('td', { className: 'num', textContent: l.loaded ? l.players : '' }),
+        el('td', { className: 'num hide-sm', textContent: l.size ? l.size.join(' × ') : '' }),
+        actions)
+    }), 'No levels.', 5)
+
+    fill($('plugins'), st.plugins.map(p => {
+      const state = p.loaded ? 'on' : p.disabled ? 'off' : 'not loaded'
+      return el('tr', {},
+        el('td', {}, el('span', { className: 'icon' + (p.loaded ? ' on' : '') })),
+        mainCell(el('span', {}, p.name, el('span', { className: 'tag' + (p.loaded ? ' on' : ''), textContent: state })), p.description || ''),
+        el('td', { className: 'num hide-sm', textContent: p.version || '' }),
+        // turning the panel off from the panel would lock you out
+        el('td', { className: 'actions' }, p.name === 'web-panel' ? '' : p.loaded
+          ? link('Turn off', `/pdisable ${p.name}`)
+          : link('Turn on', `/penable ${p.name}`)))
+    }), 'No plugins.', 4)
+  }
+
+  async function pollLogs () {
+    const lines = await api('/api/logs?since=' + since)
+    const box = $('log')
+    const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 20
+    for (const l of lines) {
+      since = l.id
+      const t = el('span', { className: 't', textContent: new Date(l.time).toTimeString().slice(0, 8) })
+      box.append(el('div', { className: l.level }, t, colored(l.message, DARK_BG)))
+    }
+    while (box.children.length > 800) box.firstChild.remove()
+    if (stick) box.scrollTop = box.scrollHeight
+  }
+
+  async function send (command) {
+    const out = await api('/api/command', { method: 'POST', body: JSON.stringify({ command }) })
+    for (const line of out.output || []) $('log').append(el('div', {}, colored('&7» ' + line, DARK_BG)))
+    $('log').scrollTop = $('log').scrollHeight
+    refresh().catch(() => {})
+  }
+
+  async function start () {
+    try {
+      await refresh()
+    } catch (e) { if (e.message !== 'unauthorized') showLogin('Could not reach the server.'); return }
+    $('login').hidden = true; $('wrap').hidden = false
+    pollLogs()
+    setInterval(() => pollLogs().catch(() => {}), 2000)
+    setInterval(() => refresh().catch(() => {}), 5000)
+  }
+
+  $('loginForm').addEventListener('submit', e => {
+    e.preventDefault()
+    token = $('token').value.trim()
+    try { sessionStorage.setItem('mcscript-token', token) } catch (err) {}
+    start()
+  })
+  $('cmdForm').addEventListener('submit', e => {
+    e.preventDefault()
+    const v = $('cmd').value.trim()
+    if (!v) return
+    $('cmd').value = ''
+    send(v).catch(() => {})
+  })
+  $('logout').addEventListener('click', () => { try { sessionStorage.removeItem('mcscript-token') } catch (e) {} location.reload() })
+
+  if (token) start(); else showLogin()
+})()
+</script>
+</body>
+</html>

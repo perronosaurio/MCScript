@@ -1,0 +1,15 @@
+name: Feature request
+description: A command, plugin or setting you would like to see
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: If MCGalaxy or another server already does this, say how it works there.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is it useful?
