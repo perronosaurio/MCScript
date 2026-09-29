@@ -256,3 +256,12 @@ test('plugin installer rejects unsafe input', async () => {
   await assert.rejects(installer.installFromNpm('/nonexistent', '--registry=https://evil'), /Invalid package/)
   assert.throws(() => installer.uninstall('/nonexistent', '../../etc'), /Invalid plugin name/)
 })
+
+test('version comparison for the update check', () => {
+  const { isNewer } = require('../lib/update-check')
+  assert.equal(isNewer('2.1.0', '2.0.9'), true)
+  assert.equal(isNewer('v2.0.0', '2.0.0'), false)
+  assert.equal(isNewer('2.0.0', '2.0.0-beta.2'), true)
+  assert.equal(isNewer('2.0.0-beta.2', '2.0.0'), false)
+  assert.equal(isNewer('1.9.9', '2.0.0'), false)
+})

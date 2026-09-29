@@ -29,6 +29,7 @@ async function startServer (overrides = {}, root = null, pluginConfigs = {}) {
       host: '127.0.0.1',
       public: false,
       verifyNames: false,
+      checkForUpdates: false,
       silent: true,
       logToFile: false,
       autosaveMinutes: 0,
