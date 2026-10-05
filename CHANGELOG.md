@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.2.0 (2026-10-05)
 
 ### Added
 - MCGalaxy's command shortcuts and aliases (`lib/commands/shortcuts.js`), including ones that carry arguments,
@@ -12,7 +12,8 @@
   and `/static`.
 - `biomes` generator: plains, forests, deserts and snowy mountains with rivers, caves and ores.
 - Texture packs in `texpacks/` are served over HTTP on the game port; `/texture mypack.zip` uses them.
-  `publicAddress` sets the address players' clients download from.
+  `publicAddress` sets the address players' clients download from; players on the same machine or network
+  get the pack without it.
 - Pterodactyl: the port is read from `SERVER_PORT`, the allocation address is used for texture packs, and
   `/restart` lets the panel start the server again. Setup steps in the README.
 
