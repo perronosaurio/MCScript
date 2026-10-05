@@ -9,6 +9,7 @@ config/
 data/
 logs/
 levels/
+texpacks/
 plugins/.removed/
 
 # editors and OS files

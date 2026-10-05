@@ -63,6 +63,8 @@ ctx.command({
 })
 ```
 
+An alias can carry arguments: with `aliases: ['zadd add']`, typing `/zadd x` runs the command as `/zone add x`.
+
 `run` can be `async` (for example to wait for the player to mark blocks). Owners can change the rank of any
 command with `/cmdset <command> <rank>`.
 

@@ -89,7 +89,7 @@ test('legacy MCScript level.dat import', () => {
 })
 
 test('generators produce valid levels', () => {
-  for (const name of ['empty', 'flat', 'pixel', 'space', 'ocean', 'island', 'terrain']) {
+  for (const name of ['empty', 'flat', 'pixel', 'space', 'ocean', 'island', 'terrain', 'biomes']) {
     const level = new Level({ name, width: 64, height: 32, length: 64 })
     generators[name].generate(level, { seed: 1 })
     assert.ok(level.spawn.y >= 0 && level.spawn.y <= 34, name)

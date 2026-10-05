@@ -21,12 +21,14 @@ write its own copy over your changes on shutdown.
 | `extraHeartbeats` | `[]` | More server lists to announce the server on, such as BetaCraft. See below |
 | `allowWebClient` | `true` | Accept the browser client (WebSocket on the same port) |
 | `trustProxy` | `false` | Use the `X-Forwarded-For` header as the player IP. Only turn this on behind your own reverse proxy |
-| `mainLevel` | `main` | Level players spawn in |
+| `mainLevel` | `main` | Level players spawn in. `/main <level>` changes it |
+| `autoloadLevels` | `[]` | More levels to load at startup. `/autoload <level>` adds one |
 | `defaultRank` | `Guest` | Rank given to new players |
 | `owners` | `[]` | Names that always get the highest rank |
 | `welcomeMessage` | | Sent to players when they join. `{player}` is replaced with their name |
 | `rules` | three lines | Shown by `/rules` |
 | `defaultTexture` | `""` | Texture pack URL for levels that don't set their own |
+| `publicAddress` | `""` | Your server's domain or IP (and `:port` if needed), used to serve packs from `texpacks/`. On Pterodactyl it is detected |
 | `autosaveMinutes` | `5` | `0` turns autosave off |
 | `backupMinutes` | `30` | How often changed levels are backed up. `0` turns backups off |
 | `backupsToKeep` | `10` | Backups kept per level |
@@ -46,7 +48,7 @@ containers and hosting panels.
 
 | Variable | Key |
 | --- | --- |
-| `PORT` | `port` |
+| `PORT` or `SERVER_PORT` | `port` (`SERVER_PORT` is what Pterodactyl sets) |
 | `HOST` | `host` |
 | `SERVER_NAME` | `name` |
 | `MOTD` | `motd` |

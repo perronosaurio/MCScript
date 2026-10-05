@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/banner.png" alt="MCScript, a ClassiCube server written in JavaScript" width="100%"></p>
+
 # MCScript
 
 [![CI](https://github.com/perronosaurio/MCScript/actions/workflows/main.yml/badge.svg)](https://github.com/perronosaurio/MCScript/actions/workflows/main.yml)
@@ -17,7 +19,7 @@ classicube.net and BetaCraft.
 - [Installing](#installing)
 - [Your first server](#your-first-server)
 - [Letting other people join](#letting-other-people-join)
-- [Keeping it running](#keeping-it-running)
+- [Keeping it running](#keeping-it-running) (including [Pterodactyl](#pterodactyl))
 - [Updating](#updating)
 - [Features](#features)
 - [Bundled plugins](#bundled-plugins)
@@ -123,6 +125,24 @@ pm2 save && pm2 startup
 
 The console isn't available as a service. Use the web panel plugin or join the game to run commands.
 
+### Pterodactyl
+
+MCScript runs on Pterodactyl panels (and others like it) with a Node.js egg, such as the generic Node.js egg from
+[parkervcp/eggs](https://github.com/parkervcp/eggs).
+
+1. **Create the server** with the Node.js egg. In **Startup**, pick a Docker image with Node.js 22 or newer
+   (for example `nodejs_22` or `nodejs_24`) and set the main file to `index.js`.
+2. **Upload the server.** In **Files**, upload the release zip, right click it and choose **Unarchive**, then move
+   the contents of the `MCScript-...` folder to the top folder, so `index.js` and `package.json` sit next to
+   each other at `/home/container`.
+3. **Start it.** The port comes from the panel's allocation (`SERVER_PORT`); you don't need to set it. The panel
+   console works like the normal console: type `/rank Name Owner` or any other command there.
+4. Edit `config/server.json` from **Files** to set the name, MOTD and `owners`, and restart from the panel.
+
+`/restart` exits and lets the panel start the server again. The panel restarts crashed servers by default; if
+yours doesn't, use the panel's Restart button. Texture packs in `texpacks/` use the allocation's address
+automatically.
+
 ### Backups
 
 Levels are backed up automatically to `levels/backups/`. `/restore` brings one back in-game. For a complete
@@ -156,12 +176,20 @@ Protocol
 - Clients without an extension get sensible fallbacks, for example a replacement block for custom blocks.
 
 Levels
-- Several loaded at once. Generators: `flat`, `empty`, `pixel`, `space`, `ocean`, `island`, `terrain` (seeded).
+- Several loaded at once. Generators: `flat`, `empty`, `pixel`, `space`, `ocean`, `island`, `terrain` and `biomes`
+  (plains, forests, deserts and snowy mountains with rivers, caves and ores). All seeded.
+- `/main <level>` picks the level players join in; `/autoload` keeps more levels loaded from startup.
 - ClassicWorld `.cw` files. MCGalaxy `.lvl` and the old `.dat` can be imported with `/import`.
 - Autosave, periodic backups with `/restore`. Deleted levels go to `levels/deleted`.
 - Per level: sky, fog, cloud and light colors, texture pack, weather, edge blocks, water level, MOTD hack flags
   (`-hax +fly`), build and visit ranks, owners, physics and lockdown.
 - Block history is written to disk, so `/about` and `/undoplayer` still work after a restart.
+
+Texture packs: put a `.zip` in `texpacks/` and `/texture mypack.zip` serves it to players from the server itself,
+on the game port. No web host needed (set `publicAddress` to your domain or IP).
+
+MCGalaxy habits work: the shortcuts and aliases from MCGalaxy are there (`/z`, `/ld`, `/gen`, `/wcopy`, `/zadd`,
+`/cw`, `/v`, `/fg`, `/h`...).
 
 Custom blocks: `/gb` for every level and `/lb` for one level. Name, textures per face, shape, collision, speed,
 sound, light, transparency, fog and fallback block. Presets included: invisible barrier, lamp, glass pane,
@@ -175,10 +203,10 @@ anti-grief.
 
 | Plugin | Commands |
 | --- | --- |
-| core-essentials | `/spawn /main /tp /tphere /back /ascend /descend /tpa /kill /msg /reply /ignore /me /say /announce /rules /faq /news /view /players /whois /top /search /blocks /pclients /whonick /serverinfo /ping /where /time /model /modelscale /entityrot /skin /nick /color /title /tcolor /hold /reach /fly /afk /clear /roll /8ball /hug /high5 /send /inbox /loginmessage /logoutmessage /emotes /ccols /lastcmd` |
-| core-moderation | `/rank /promote /demote /ranks /rankinfo /temprank /kick /warn /ban /unban /baninfo /banedit /banip /unbanip /xban /bans /mute /unmute /freeze /vanish /follow /p2p /patrol /moveall /moderate /voice /opchat /adminchat /rankmsg /report /whitelist /playeredit /limit /sudo /oprules` |
-| core-worlds | `/newlvl /goto /levels /load /unload /save /deletelvl /copylvl /renamelvl /resizelvl /import /mapinfo /map /setspawn /backup /restore /lockdown /reload /fixgrass /unflood /env /weather /texture` |
-| core-building | `/cuboid /replace /replaceall /line /sphere /spheroid /torus /pyramid /hollow /outline /fill /tree /maze /rainbow /drill /center /place /copy /paste /mirror /spin /write /mark /bind /mode /undo /undoplayer /redo /paint /about /measure /calculate` |
+| core-essentials | `/spawn /main /tp /tphere /back /ascend /descend /tpa /kill /msg /reply /ignore /me /say /announce /rules /faq /news /view /players /whois /top /search /blocks /pclients /whonick /serverinfo /ping /where /time /model /modelscale /entityrot /skin /nick /color /title /tcolor /hold /reach /fly /afk /clear /roll /8ball /hug /high5 /send /inbox /loginmessage /logoutmessage /emotes /ccols /lastcmd /vote /yes /no /timer /pronouns /quit /ragequit` |
+| core-moderation | `/rank /promote /demote /ranks /rankinfo /temprank /kick /warn /ban /unban /baninfo /banedit /banip /unbanip /xban /bans /mute /unmute /freeze /vanish /follow /p2p /patrol /moveall /moderate /voice /opchat /adminchat /rankmsg /report /whitelist /playeredit /limit /sudo /oprules /alts` |
+| core-worlds | `/newlvl /goto /levels /load /unload /save /deletelvl /copylvl /renamelvl /resizelvl /import /mapinfo /map /setspawn /backup /restore /lockdown /reload /fixgrass /unflood /env /weather /texture /like /dislike /autoload` |
+| core-building | `/cuboid /replace /replaceall /line /sphere /spheroid /torus /pyramid /hollow /outline /fill /tree /maze /rainbow /drill /center /place /copy /paste /mirror /spin /write /mark /bind /mode /undo /undoplayer /redo /paint /about /measure /calculate /replacenot /triangle /delete /static` |
 | core-blocks | `/gb /lb` |
 | warps | `/warp /home` |
 | zones | `/zone` (protected areas, shown in the client) |

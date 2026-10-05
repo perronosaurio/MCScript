@@ -929,3 +929,93 @@ test('minigame arenas are remembered and loaded at startup', async (t) => {
   assert.doesNotMatch(await command(guest, '/zombie join', 400), /There is no/)
   assert.equal(server.findPlayerExact('Guest').level.name, 'arena')
 })
+
+test('MCGalaxy shortcuts, /main <level>, autoload and the new commands', async (t) => {
+  const { server, root } = await startServer({ owners: ['Boss'] })
+  t.after(() => server.stop())
+  const boss = await join(server, 'Boss')
+  const guest = await join(server, 'Guest')
+
+  // plain shortcuts and shortcuts that carry arguments
+  assert.equal(server.commands.find('gen').name, 'newlvl')
+  assert.equal(server.commands.find('ld').name, 'lockdown')
+  assert.equal(server.commands.find('v').name, 'paste')
+  assert.equal(server.commands.find('pl').name, 'place')
+  assert.deepEqual(server.commands.aliasArgs('zadd'), ['add'])
+  assert.match(await command(boss, '/gen second 64 32 64 flat', 400), /created|Created/)
+  assert.match(await command(boss, '/zonelist'), /zone|Zone/)
+  assert.match(await command(boss, '/help zadd'), /\/zone/)
+
+  // /main <level>
+  assert.match(await command(guest, '/main second'), /Only admins/)
+  assert.match(await command(boss, '/main second'), /second is now the main level/)
+  assert.equal(server.levels.main.name, 'second')
+  assert.equal(JSON.parse(require('fs').readFileSync(require('path').join(root, 'config', 'server.json'), 'utf8')).mainLevel, 'second')
+  await command(boss, '/main main')
+
+  // autoload
+  assert.match(await command(boss, '/autoload second'), /loaded at startup/)
+  assert.deepEqual(server.config.autoloadLevels, ['second'])
+
+  // ratings show up in /mapinfo
+  await command(guest, '/like')
+  assert.match(await command(guest, '/mapinfo'), /1 likes/)
+
+  // votes
+  await command(boss, '/vote Build a castle?')
+  assert.match(await command(guest, '/yes'), /voted &fyes/)
+  assert.match(await command(boss, '/vote end'), /1 yes .*0 no/)
+
+  // pronouns in /whois
+  assert.match(await command(guest, '/pronouns they/them'), /they\/them/)
+  assert.match(await command(boss, '/whois Guest'), /Pronouns: &fthey\/them/)
+  assert.match(await command(guest, '/pronouns <script>'), /Use something like/)
+
+  // alts
+  assert.match(await command(boss, '/alts Guest'), /Boss/) // both joined from 127.0.0.1
+
+  // /replacenot and /triangle
+  const level = server.levels.main
+  const mark = async (c, x, y, z) => { c.send('setBlock', { x, y, z, mode: 1, block: 1 }); await sleep(80) }
+  boss.chat('/replacenot air glass'); await sleep(100)
+  const ground = level.getBlock(2, 15, 2)
+  assert.notEqual(ground, 0)
+  await mark(boss, 2, 15, 2); await mark(boss, 3, 16, 3)
+  await sleep(200)
+  assert.equal(level.getBlock(2, 15, 2), 20) // the ground became glass
+  assert.equal(level.getBlock(2, 16, 2), 0) // air was left alone
+  boss.chat('/tri stone'); await sleep(100)
+  await mark(boss, 10, 20, 10); await mark(boss, 16, 20, 10); await mark(boss, 10, 20, 16)
+  await sleep(200)
+  assert.equal(level.getBlock(12, 20, 12), 1)
+  assert.equal(level.getBlock(15, 20, 15), 0)
+})
+
+test('texture packs in texpacks/ are served on the game port', async (t) => {
+  const fs = require('fs')
+  const path = require('path')
+  const { server, root } = await startServer({ owners: ['Boss'], publicAddress: 'play.example.com' })
+  t.after(() => server.stop())
+  fs.mkdirSync(path.join(root, 'texpacks'))
+  const pack = Buffer.from('PK\x03\x04 pretend zip')
+  fs.writeFileSync(path.join(root, 'texpacks', 'demo.zip'), pack)
+
+  const get = (target) => new Promise((resolve, reject) => {
+    const s = net.connect(server.port, '127.0.0.1', () => s.write(`GET ${target} HTTP/1.1\r\nHost: x\r\n\r\n`))
+    let data = Buffer.alloc(0)
+    s.on('data', d => { data = Buffer.concat([data, d]) })
+    s.on('end', () => resolve(data))
+    s.on('error', reject)
+  })
+  const ok = await get('/texpacks/demo.zip')
+  assert.match(ok.toString('latin1'), /^HTTP\/1.1 200 OK/)
+  assert.match(ok.toString('latin1'), /Content-Type: application\/zip/)
+  assert.ok(ok.subarray(ok.indexOf('\r\n\r\n') + 4).equals(pack))
+  assert.match((await get('/texpacks/../config/server.json')).toString(), /^HTTP\/1.1 404/)
+  assert.match((await get('/texpacks/missing.zip')).toString(), /^HTTP\/1.1 404/)
+
+  const boss = await join(server, 'Boss')
+  await command(boss, '/texture demo.zip')
+  assert.equal(server.levels.main.env.texture, `http://play.example.com:${server.port}/texpacks/demo.zip`)
+  assert.match(await command(boss, '/texture list'), /demo\.zip/)
+})
