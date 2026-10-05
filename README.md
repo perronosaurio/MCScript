@@ -141,7 +141,8 @@ MCScript runs on Pterodactyl panels (and others like it) with a Node.js egg, suc
 
 `/restart` exits and lets the panel start the server again. The panel restarts crashed servers by default; if
 yours doesn't, use the panel's Restart button. Texture packs in `texpacks/` use the allocation's address
-automatically.
+automatically; if the panel shows the allocation as `0.0.0.0`, set `publicAddress` in `config/server.json` to
+the address players connect to (for example `play.example.com:25565`).
 
 ### Backups
 
