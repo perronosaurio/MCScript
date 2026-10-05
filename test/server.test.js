@@ -1015,7 +1015,10 @@ test('texture packs in texpacks/ are served on the game port', async (t) => {
   assert.match((await get('/texpacks/missing.zip')).toString(), /^HTTP\/1.1 404/)
 
   const boss = await join(server, 'Boss')
+  boss.mark()
   await command(boss, '/texture demo.zip')
-  assert.equal(server.levels.main.env.texture, `http://play.example.com:${server.port}/texpacks/demo.zip`)
+  assert.equal(server.levels.main.env.texture, 'demo.zip')
+  const sent = boss.received.slice(boss.cursor).find(p => p.name === 'setMapEnvUrl')
+  assert.equal(sent.url, `http://play.example.com:${server.port}/texpacks/demo.zip`)
   assert.match(await command(boss, '/texture list'), /demo\.zip/)
 })

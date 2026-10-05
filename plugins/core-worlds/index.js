@@ -466,13 +466,14 @@ module.exports = {
           return player.message(files.length ? `&eTexture packs in texpacks/: &f${files.join(', ')}` : '&eThe texpacks/ folder is empty.')
         }
         const reset = args[0].toLowerCase() === 'reset'
-        let url = reset ? '' : args[0]
-        if (!reset && !/^https?:\/\//i.test(url) && /^[A-Za-z0-9_.-]+\.(zip|png)$/i.test(url)) {
+        const url = reset ? '' : args[0]
+        const local = !reset && !/^https?:\/\//i.test(url) && /^[A-Za-z0-9_.-]+\.(zip|png)$/i.test(url)
+        if (local) {
+          // only the file name is stored; the full URL is made when it's sent, so a new address just works
           if (!fs.existsSync(path.join(server.root, 'texpacks', url))) throw new CommandError(`texpacks/${url} doesn't exist.`)
-          url = server.texturePackUrl(url)
-          if (!url) throw new CommandError('Set "publicAddress" in config/server.json (your domain or IP) to serve texture packs from this server.')
+          if (!server.texturePackUrl(url)) player.message('&eSet "publicAddress" in config/server.json (your domain or IP) so players can download it.')
         }
-        if (!reset) {
+        if (!reset && !local) {
           if (!/^https?:\/\//i.test(url)) throw new CommandError('The URL must start with http:// or https://')
           if (!/\.(zip|png)(\?.*)?$/i.test(url)) player.message('&eWarning: texture URLs normally end in .zip (texture pack) or .png (terrain).')
           if (url.length > 64) throw new CommandError('The URL is too long (max 64 characters). Use a URL shortener or a shorter host.')
