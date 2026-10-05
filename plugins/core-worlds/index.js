@@ -2,6 +2,9 @@
 
 // Multiple levels: create, load, visit, import, backup and customize environment (colors, texture pack, weather).
 
+const fs = require('fs')
+const path = require('path')
+
 const PRESETS = {
   normal: { skyColor: null, cloudColor: null, fogColor: null, shadowColor: null, sunColor: null, skyboxColor: null },
   sunny: { skyColor: '70a3f7', cloudColor: 'ffffff', fogColor: 'ffffff', shadowColor: '9b9b9b', sunColor: 'ffffff' },
@@ -254,6 +257,8 @@ module.exports = {
         player.message(`&7  Build: ${rankName(level.buildRank)}&7+, visit: ${rankName(level.visitRank)}&7+, players here: &f${level.players.length}`)
         if (level.owners.length) player.message(`&7  Owners: &f${level.owners.join(', ')}`)
         player.message(`&7  MOTD: &f${level.motd}`)
+        const rating = level.meta.ratings
+        if (rating && (rating.likes.length || rating.dislikes.length)) player.message(`&7  Rating: &a${rating.likes.length} likes&7, &c${rating.dislikes.length} dislikes`)
         const e = level.env
         player.message(`&7  Texture: &f${e.texture || 'default'}&7, weather: &f${['sun', 'rain', 'snow'][e.weather]}`)
         player.message(`&7  Custom blocks: &f${Object.keys(level.blockDefs).length}&7 level, &f${Object.keys(server.blockDefs).length}&7 global`)
@@ -321,6 +326,7 @@ module.exports = {
     })
 
     require('./more')(ctx, { levelArg })
+    require('./ratings')(ctx)
 
     // backups
 
@@ -448,13 +454,24 @@ module.exports = {
       aliases: ['tex', 'texturepack'],
       category: 'world',
       rank: 'Operator',
-      usage: '/texture <url|reset> [global]',
+      usage: '/texture <url|file|reset|list> [global]',
       description: 'Sets the texture pack (.zip) or terrain (.png) of your level, or of all levels with "global"',
+      help: ['Packs you put in the texpacks/ folder are downloaded from the server itself: /texture mypack.zip', '(set publicAddress in config/server.json to your server\'s domain or IP first)'],
       inGame: true,
       run (player, args, { usage }) {
         if (!args[0]) return usage()
+        if (args[0].toLowerCase() === 'list') {
+          const dir = path.join(server.root, 'texpacks')
+          const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /\.(zip|png)$/i.test(f)) : []
+          return player.message(files.length ? `&eTexture packs in texpacks/: &f${files.join(', ')}` : '&eThe texpacks/ folder is empty.')
+        }
         const reset = args[0].toLowerCase() === 'reset'
-        const url = reset ? '' : args[0]
+        let url = reset ? '' : args[0]
+        if (!reset && !/^https?:\/\//i.test(url) && /^[A-Za-z0-9_.-]+\.(zip|png)$/i.test(url)) {
+          if (!fs.existsSync(path.join(server.root, 'texpacks', url))) throw new CommandError(`texpacks/${url} doesn't exist.`)
+          url = server.texturePackUrl(url)
+          if (!url) throw new CommandError('Set "publicAddress" in config/server.json (your domain or IP) to serve texture packs from this server.')
+        }
         if (!reset) {
           if (!/^https?:\/\//i.test(url)) throw new CommandError('The URL must start with http:// or https://')
           if (!/\.(zip|png)(\?.*)?$/i.test(url)) player.message('&eWarning: texture URLs normally end in .zip (texture pack) or .png (terrain).')

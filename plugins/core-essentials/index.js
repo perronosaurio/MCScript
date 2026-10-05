@@ -53,10 +53,18 @@ module.exports = {
     ctx.command({
       name: 'main',
       category: 'essentials',
-      usage: '/main',
-      description: 'Takes you to the main level',
-      inGame: true,
-      run (player) {
+      usage: '/main [level]',
+      description: 'Takes you to the main level. Admins can pick another main level with /main <level>',
+      help: ['The main level is where players arrive when they join. It is saved in config/server.json.'],
+      run (player, args) {
+        if (args[0]) {
+          if (player.permission < server.ranks.permissionOf('Admin')) throw new CommandError('Only admins can change the main level.')
+          const name = server.levels.resolveName(args[0])
+          if (!name) throw new CommandError(`There is no level called ${args[0]}.`)
+          const level = server.levels.setMain(name)
+          return server.broadcast(`&e${level.name} is now the main level.`, p => p.permission >= server.ranks.permissionOf('Admin') || p === player)
+        }
+        if (player.isConsole) return player.message(`&eThe main level is &f${server.levels.main.name}&e.`)
         if (player.level === server.levels.main) {
           const s = player.level.spawn
           return player.teleport(s.x, s.y, s.z, s.yaw, s.pitch)
@@ -246,6 +254,7 @@ module.exports = {
         const onlinePlayer = server.findPlayerExact(record.name)
         player.message(`&e${rank.color}${record.name}&e ${onlinePlayer ? '&a(online)' : '&7(offline)'}`)
         if (record.nick) player.message(`&7  Nickname: &f${record.nick}`)
+        if (record.pronouns) player.message(`&7  Pronouns: &f${record.pronouns}`)
         player.message(`&7  Rank: ${rank.color}${rank.name}`)
         if (onlinePlayer) {
           player.message(`&7  In level: &f${onlinePlayer.level.name}&7, using &f${onlinePlayer.appName}${onlinePlayer.pingMs !== null ? `&7, ping &f${onlinePlayer.pingMs}ms` : ''}`)
@@ -493,6 +502,7 @@ module.exports = {
     }
 
     require('./more')(ctx, { find })
+    require('./social')(ctx)
 
     ctx.on('tabListEntry', (ev) => {
       if (isAfk(ev.player)) ev.listName += ' &7(AFK)'
