@@ -308,7 +308,7 @@ module.exports = {
 
     ctx.command({
       name: 'vanish',
-      aliases: ['hide', 'v'],
+      aliases: ['hide'],
       category: 'moderation',
       rank: 'Operator',
       usage: '/vanish',
@@ -334,6 +334,7 @@ module.exports = {
     })
 
     require('./more')(ctx, { find, findRecord, rankOf, checkHigher, actorName })
+    require('./alts')(ctx, { findRecord })
 
     // anti-spam
 
