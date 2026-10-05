@@ -1013,6 +1013,16 @@ test('texture packs in texpacks/ are served on the game port', async (t) => {
   assert.ok(ok.subarray(ok.indexOf('\r\n\r\n') + 4).equals(pack))
   assert.match((await get('/texpacks/../config/server.json')).toString(), /^HTTP\/1.1 404/)
   assert.match((await get('/texpacks/missing.zip')).toString(), /^HTTP\/1.1 404/)
+  const head = await new Promise((resolve, reject) => {
+    const s = net.connect(server.port, '127.0.0.1', () => s.write('HEAD /texpacks/demo.zip HTTP/1.1\r\nHost: x\r\n\r\n'))
+    let data = ''
+    s.on('data', d => { data += d })
+    s.on('end', () => resolve(data))
+    s.on('error', reject)
+  })
+  assert.match(head, /^HTTP\/1.1 200 OK/)
+  assert.match(head, new RegExp(`Content-Length: ${pack.length}`))
+  assert.ok(head.endsWith('\r\n\r\n'))
 
   const boss = await join(server, 'Boss')
   boss.mark()
