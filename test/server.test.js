@@ -1021,4 +1021,9 @@ test('texture packs in texpacks/ are served on the game port', async (t) => {
   const sent = boss.received.slice(boss.cursor).find(p => p.name === 'setMapEnvUrl')
   assert.equal(sent.url, `http://play.example.com:${server.port}/texpacks/demo.zip`)
   assert.match(await command(boss, '/texture list'), /demo\.zip/)
+
+  // without a public address, players on this machine get the address they connected to
+  server.config.publicAddress = ''
+  const player = server.findPlayer('Boss')
+  assert.equal(server.texturePackUrl('demo.zip', player), `http://127.0.0.1:${server.port}/texpacks/demo.zip`)
 })
