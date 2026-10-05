@@ -1036,4 +1036,15 @@ test('texture packs in texpacks/ are served on the game port', async (t) => {
   server.config.publicAddress = ''
   const player = server.findPlayer('Boss')
   assert.equal(server.texturePackUrl('demo.zip', player), `http://127.0.0.1:${server.port}/texpacks/demo.zip`)
+
+  // inside a panel's container that address is the container's, and an internal SERVER_IP is no better
+  const saved = { uuid: process.env.P_SERVER_UUID, ip: process.env.SERVER_IP }
+  t.after(() => {
+    for (const [k, v] of [['P_SERVER_UUID', saved.uuid], ['SERVER_IP', saved.ip]]) { if (v === undefined) delete process.env[k]; else process.env[k] = v }
+  })
+  process.env.P_SERVER_UUID = 'test'
+  process.env.SERVER_IP = '172.18.0.5'
+  assert.equal(server.texturePackUrl('demo.zip', player), null)
+  process.env.SERVER_IP = '203.0.113.5'
+  assert.equal(server.texturePackUrl('demo.zip', player), `http://203.0.113.5:${server.port}/texpacks/demo.zip`)
 })
