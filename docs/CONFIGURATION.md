@@ -28,7 +28,7 @@ write its own copy over your changes on shutdown.
 | `welcomeMessage` | | Sent to players when they join. `{player}` is replaced with their name |
 | `rules` | three lines | Shown by `/rules` |
 | `defaultTexture` | `""` | Texture pack URL for levels that don't set their own |
-| `publicAddress` | `""` | Your server's domain or IP (and `:port` if needed), used to serve packs from `texpacks/`. On Pterodactyl it is detected |
+| `publicAddress` | `""` | Your server's domain or IP (and `:port` if needed), used to serve packs from `texpacks/`. Set it on hosts and panels. Without it, Pterodactyl's allocation IP is used if it is public, and players on the same machine or network get the address they connected to |
 | `autosaveMinutes` | `5` | `0` turns autosave off |
 | `backupMinutes` | `30` | How often changed levels are backed up. `0` turns backups off |
 | `backupsToKeep` | `10` | Backups kept per level |

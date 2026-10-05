@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2.1 (2026-10-06)
+
+### Fixed
+- Texture packs on Pterodactyl and other container hosts: an internal allocation IP (or the container's own
+  address) could be sent as the download address, and players got "Error 10061" (connection refused). Only a
+  public allocation IP is used now; otherwise the console asks for `publicAddress`, and it prints the URL
+  players download from.
+
 ## 2.2.0 (2026-10-05)
 
 ### Added

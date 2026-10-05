@@ -140,9 +140,9 @@ MCScript runs on Pterodactyl panels (and others like it) with a Node.js egg, suc
 4. Edit `config/server.json` from **Files** to set the name, MOTD and `owners`, and restart from the panel.
 
 `/restart` exits and lets the panel start the server again. The panel restarts crashed servers by default; if
-yours doesn't, use the panel's Restart button. Texture packs in `texpacks/` use the allocation's address
-automatically; if the panel shows the allocation as `0.0.0.0`, set `publicAddress` in `config/server.json` to
-the address players connect to (for example `play.example.com:25565`).
+yours doesn't, use the panel's Restart button. For texture packs in `texpacks/`, set `publicAddress` in
+`config/server.json` to the address shown in the panel (for example `play.example.com:25565`). Without it the
+allocation's IP is used, but only when it is a public one. The console prints the URL players download from.
 
 ### Backups
 
