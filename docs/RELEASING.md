@@ -1,7 +1,7 @@
 # Releasing a new version
 
 Every version is published as a GitHub release with a zip and a tar.gz of the server, the way MCGalaxy does
-it. The release workflow (`.github/workflows/release.yml`) does the work once a version tag is pushed.
+it. The release workflow (`.github/workflows/release.yml`) does the work when a new version reaches `master`.
 
 ## Version numbers
 
@@ -17,23 +17,25 @@ update check doesn't announce them to servers on a final release.
 ## Steps
 
 1. Make sure CI is green on `master`.
-2. In `CHANGELOG.md`, rename the `## Unreleased` section to the new version and date, for example
-   `## 2.1.0 (2026-11-02)`, and start a new empty `## Unreleased` section above it.
+2. On a new branch, rename the `## Unreleased` section of `CHANGELOG.md` to the new version and date, for
+   example `## 2.2.0 (2026-11-02)`, and start a new empty `## Unreleased` section above it.
 3. Update the version in `package.json` and `package-lock.json`:
    ```bash
-   npm version 2.1.0 --no-git-tag-version
+   npm version 2.2.0 --no-git-tag-version
    ```
-4. Commit both files with the message `Release 2.1.0` and push to `master`.
-5. Tag the commit and push the tag:
-   ```bash
-   git tag v2.1.0
-   git push origin v2.1.0
-   ```
+4. Commit both files as `Release 2.2.0`, open a pull request and merge it once CI passes.
 
-The workflow then runs the lint and tests, checks that the tag matches `package.json`, builds
-`MCScript-v2.1.0.zip` and `.tar.gz` (without the tests and GitHub files) and creates the release with the
-changelog section as its notes. If something fails, fix it, delete the tag (`git push --delete origin v2.1.0`,
-`git tag -d v2.1.0`) and tag again.
+That's it. When `master` gets a `package.json` version that has no release yet, the release workflow runs
+the lint and tests, creates the `v2.2.0` tag on that commit, builds `MCScript-v2.2.0.zip` and `.tar.gz`
+(without the tests and GitHub files) and publishes the release with the changelog section as its notes. The
+release appears under **Releases** a couple of minutes after the merge. Merges that don't change the version
+don't publish anything.
+
+Pushing a `v*` tag by hand also works: the workflow then releases that tag, as long as `package.json` has the
+same version.
+
+If the workflow fails, fix the cause and merge the fix; the next push to `master` tries again, since that
+version still has no release.
 
 Servers running an older version print a message in the console with a link to the new release when they start
 (unless `checkForUpdates` is off).

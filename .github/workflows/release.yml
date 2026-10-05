@@ -1,6 +1,10 @@
 name: Release
+# Publishes a GitHub release with a zip and a tar.gz of the server.
+# - On master: when package.json has a version that has no release yet (merge a "Release x.y.z" PR).
+# - On a v* tag pushed by hand: releases that tag (package.json must match it).
 on:
   push:
+    branches: [master]
     tags: ['v*']
 permissions:
   contents: write
@@ -9,28 +13,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - name: Check that package.json matches the tag
-        run: |
-          test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME" \
-            || { echo "package.json says $(node -p "require('./package.json').version"), tag is $GITHUB_REF_NAME"; exit 1; }
-      - name: Build the archive
-        run: |
-          git archive --format=zip --prefix="MCScript-${GITHUB_REF_NAME}/" -o "MCScript-${GITHUB_REF_NAME}.zip" "$GITHUB_REF_NAME"
-          git archive --format=tar.gz --prefix="MCScript-${GITHUB_REF_NAME}/" -o "MCScript-${GITHUB_REF_NAME}.tar.gz" "$GITHUB_REF_NAME"
-      - name: Take the release notes from CHANGELOG.md
-        run: node scripts/release-notes.js "${GITHUB_REF_NAME#v}" > notes.md
-      - name: Publish the release
+      - name: Work out the version
+        id: version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          version="v$(node -p "require('./package.json').version")"
+          echo "tag=$version" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            test "$version" = "$GITHUB_REF_NAME" \
+              || { echo "package.json says $version, tag is $GITHUB_REF_NAME"; exit 1; }
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif gh release view "$version" > /dev/null 2>&1; then
+            echo "$version is already released, nothing to do."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v7
+        if: steps.version.outputs.publish == 'true'
+        with:
+          node-version: 24
+          cache: npm
+      - if: steps.version.outputs.publish == 'true'
+        run: npm ci && npm run lint && npm test
+      - name: Build the archive
+        if: steps.version.outputs.publish == 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git archive --format=zip --prefix="MCScript-${TAG}/" -o "MCScript-${TAG}.zip" HEAD
+          git archive --format=tar.gz --prefix="MCScript-${TAG}/" -o "MCScript-${TAG}.tar.gz" HEAD
+      - name: Take the release notes from CHANGELOG.md
+        if: steps.version.outputs.publish == 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: node scripts/release-notes.js "${TAG#v}" > notes.md
+      - name: Publish the release
+        if: steps.version.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
           flags=""
-          case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" MCScript-*.zip MCScript-*.tar.gz \
-            --title "MCScript ${GITHUB_REF_NAME#v}" --notes-file notes.md $flags
+          case "$TAG" in *-*) flags="--prerelease" ;; esac
+          # creates the tag on this commit when it doesn't exist yet
+          gh release create "$TAG" MCScript-*.zip MCScript-*.tar.gz \
+            --target "$GITHUB_SHA" --title "MCScript ${TAG#v}" --notes-file notes.md $flags
