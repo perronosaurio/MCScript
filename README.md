@@ -108,7 +108,10 @@ journalctl -u mcscript -f     # live log
 ```
 
 `KillSignal=SIGINT` gives the server time to save the levels when the service is stopped. Don't run the
-server as root.
+server as root. When something else restarts the server (systemd, pm2 or a start script with a loop), set the
+environment variable `MCSCRIPT_SUPERVISED=1` (for systemd: `Environment=MCSCRIPT_SUPERVISED=1` under
+`[Service]`). `/restart` then just exits and lets the supervisor start it again, instead of starting a second
+copy itself.
 
 **Any system with pm2:**
 

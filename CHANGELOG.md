@@ -12,8 +12,15 @@
 - Tests that play ViaFabricPlus (ViaLegacy) and the vanilla Classic 0.30 client and check they only get
   packets they understand.
 - `staffChat` event, and `createConsoleActor` can take a rank.
+- Minigame arenas are remembered: levels enabled with `/tntwars enable`, `/ctf enable` or `/zombie enable` are
+  loaded at startup, so `/<game> join` works from any level. `/<game> join <level>` loads the arena if needed.
 
 ### Fixed
+- `/restart` under a supervisor (systemd, pm2, a start script loop) started a second copy of the server.
+  With `MCSCRIPT_SUPERVISED=1` set it now just exits and lets the supervisor restart it.
+- Right after a teleport or a level change, movement packets the client had sent from its old position
+  were taken as its new position. That could fire portals, message blocks or parkour checkpoints in the
+  wrong place (walking into a portal could bounce you straight back). Those late packets are now ignored.
 - Several commands skipped rank checks for anything that was not a player (for example "only give ranks
   lower than your own"). They now compare permission levels, so actions from Discord or other relays follow
   the rank rules. The real console is unaffected.
