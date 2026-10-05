@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added
+- MCGalaxy's command shortcuts and aliases (`lib/commands/shortcuts.js`), including ones that carry arguments,
+  like `/zadd` for `/zone add` or `/cw` for `/cuboid wire`. `/v` is now `/paste` and `/pl` is `/place`, as in
+  MCGalaxy (`/vanish` keeps `/hide`, `/plugins` keeps `/plist`).
+- `/main <level>` sets the main level; `/autoload` and `autoloadLevels` load more levels at startup.
+- New commands from MCGalaxy: `/vote` (`/yes`, `/no`), `/timer`, `/pronouns` (shown in `/whois`), `/quit`,
+  `/ragequit`, `/alts`, `/like` and `/dislike` (shown in `/mapinfo`), `/replacenot`, `/triangle`, `/delete`
+  and `/static`.
+- `biomes` generator: plains, forests, deserts and snowy mountains with rivers, caves and ores.
+- Texture packs in `texpacks/` are served over HTTP on the game port; `/texture mypack.zip` uses them.
+  `publicAddress` sets the address players' clients download from.
+- Pterodactyl: the port is read from `SERVER_PORT`, the allocation address is used for texture packs, and
+  `/restart` lets the panel start the server again. Setup steps in the README.
+
 ## 2.1.0 (2026-10-05)
 
 ### Added

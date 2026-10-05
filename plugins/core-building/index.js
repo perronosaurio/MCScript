@@ -614,6 +614,7 @@ module.exports = {
     })
 
     require('./more')(ctx, { select, blockArg, checkVolume, box, apply, clipboards, key })
+    require('./tools')(ctx, { select, blockArg, checkVolume, box, apply })
 
     // manual building
 
