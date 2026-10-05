@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.1.0 (2026-10-05)
+
 ### Added
 - The Discord bot now works like MCGalaxy's: chat channels, staff channels linked to `/opchat`, and
   `!command` from Discord with ranks given by Discord roles or users (`roleRanks`, `userRanks`).
@@ -25,7 +27,7 @@
   lower than your own"). They now compare permission levels, so actions from Discord or other relays follow
   the rank rules. The real console is unaffected.
 
-## 2.0.0
+## 2.0.0 (2026-09-29)
 
 MCScript is back after seven years. The server was rewritten from scratch; none of the 1.x code (`src/`,
 `client.js`) is left, but an old `levels/level.dat` is still converted on the first start.
