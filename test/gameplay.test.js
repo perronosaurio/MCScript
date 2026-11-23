@@ -254,3 +254,33 @@ test('CTF puts the arena back and sends everyone to the spawn when a round ends'
   await sleep(1200)
   assert.equal(round.state, 'countdown')
 })
+
+test('TNT Wars puts the arena back exactly, even with physics running', async (t) => {
+  const { server } = await startServer({ owners: ['Boss'] }, null, { minigames: { autoRestart: false } })
+  t.after(() => server.stop())
+  const boss = await join(server, 'Boss')
+  const other = await join(server, 'Other')
+  const level = server.levels.main
+  await command(boss, '/physics 2') // level 2: TNT hit by an explosion goes off too
+  // things physics cares about near where the TNT goes: TNT built into the map, and sand over a gap
+  level.setBlocks([[20, 16, 20, 46], [21, 16, 20, 46], [24, 18, 20, 12], [24, 17, 20, 12], [24, 16, 20, 1]])
+  await command(boss, '/tntwars enable')
+  await command(boss, '/tntwars join')
+  await command(other, '/tntwars join')
+  await command(boss, '/tntwars start', 300)
+  const round = server.plugins.get('minigames').module.api.games.tntwars.rounds.get('main')
+  assert.ok(round.running)
+  const before = Buffer.from(level.blocks)
+  const p = server.findPlayerExact('Boss')
+  // blow up next to the map's TNT and under the sand, then end the round while physics is still busy
+  round.drop(p, 30, 16, 30)
+  await sleep(2700)
+  assert.ok(!Buffer.from(level.blocks).equals(before), 'the explosion changed the map')
+  // an explosion right as the round ends: the map's TNT is lit and the sand about to fall
+  server.plugins.get('physics').module.api.explode(level, 22, 16, 21, 3)
+  round.end([], 'test')
+  await sleep(50)
+  assert.ok(Buffer.from(level.blocks).equals(before), 'restored right away')
+  await sleep(2000)
+  assert.ok(Buffer.from(level.blocks).equals(before), 'and nothing left over from the game changes it afterwards')
+})

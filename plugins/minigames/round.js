@@ -149,7 +149,11 @@ class Round {
         changes.push([x, y, z, original])
       }
     }
+    // physics still busy with the game (falling sand, lit TNT) would change the arena again: drop all of it
+    const physics = this.ctx.getPlugin('physics')
+    if (physics && physics.reset) physics.reset(level)
     level.setBlocks(changes)
+    if (physics && physics.reset) physics.reset(level)
     this.snapshot = null
   }
 

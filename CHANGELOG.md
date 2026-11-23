@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.2 (2026-11-23)
+
+### Fixed
+- Minigame arenas (TNT Wars, CTF, Zombie Survival) with physics on could change again right after being put
+  back: sand still falling or TNT lit by the last explosion went off on the restored map. Restoring an arena
+  now clears the physics that were pending in it.
+
 ## 2.3.1 (2026-11-23)
 
 ### Fixed

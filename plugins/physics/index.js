@@ -263,8 +263,17 @@ module.exports = {
       }
     })
 
+    // Forgets everything pending in a level (falling sand, flowing water, lit TNT) and looks at it again.
+    // Minigames call it when they put an arena back, so nothing left from the game changes it afterwards.
+    const reset = (level) => {
+      states.delete(level.name)
+      for (const key of [...primed]) if (key.startsWith(level.name + ':')) primed.delete(key)
+      scan(level)
+    }
+
     module.exports.api = {
       explode: (level, x, y, z, radius) => explode(level, x, y, z, radius),
+      reset,
       schedule: (level, x, y, z) => scheduleAround(level, x, y, z),
       modeOf
     }
