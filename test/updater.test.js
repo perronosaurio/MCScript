@@ -110,6 +110,18 @@ test('autoUpdate installs a newer release and leaves the server\'s own files alo
   asked.length = 0
   assert.equal(await updateBeforeStart({ root, fetchImpl, log, env: {} }), null)
   assert.ok(!asked.some(u => u.includes('codeload')))
+
+  // the API is rate limited: the release page's redirect is used instead
+  const limited = async (url, opts) => {
+    if (url.endsWith('/repos/perronosaurio/MCScript/releases/latest')) return new Response('rate limited', { status: 403 })
+    if (url === 'https://github.com/perronosaurio/MCScript/releases/latest') {
+      assert.equal(opts.redirect, 'manual')
+      return new Response(null, { status: 302, headers: { location: 'https://github.com/perronosaurio/MCScript/releases/tag/v9.9.10' } })
+    }
+    if (url === 'https://codeload.github.com/perronosaurio/MCScript/tar.gz/refs/tags/v9.9.10') return new Response(tgz)
+    return new Response('not found', { status: 404 })
+  }
+  assert.equal(await updateBeforeStart({ root, fetchImpl: limited, log, env: {} }), '9.9.10')
 })
 
 test('autoUpdate is off by default and never breaks the start', async (t) => {
