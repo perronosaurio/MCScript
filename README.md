@@ -212,7 +212,8 @@ ladder, carpet, slabs, speed pad and more.
 
 Players and moderation: numeric rank permissions, draw and undo limits per rank, temporary and IP bans, mutes,
 warnings, temporary ranks, reports, whitelist, moderated chat, staff chats, freeze, vanish, anti-spam and
-anti-grief. Idle players are marked AFK and kicked after 45 minutes like in MCGalaxy (`afkKickMinutes` in
+anti-grief. `/warn`, `/mute`, `/freeze`, `/voice`, `/ban` and the rank commands also work on players who are
+offline: it applies when they come back (a third warning kicks them as they join). Idle players are marked AFK and kicked after 45 minutes like in MCGalaxy (`afkKickMinutes` in
 `config/plugins/core-essentials.json`), and clients that crashed or froze are dropped after `timeoutSeconds`.
 
 Updates: with `"autoUpdate": true` the server installs new MCScript releases by itself (see

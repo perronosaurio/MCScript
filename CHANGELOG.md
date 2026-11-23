@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.3 (2026-11-23)
+
+### Changed
+- `/warn`, `/mute`, `/freeze` and `/voice` work on offline players. A warning given while someone is away is
+  shown when they come back, and a third one kicks them as they join. Freeze and voice are saved with the
+  player, so leaving and joining again no longer gets rid of a freeze.
+
 ## 2.3.2 (2026-11-23)
 
 ### Fixed

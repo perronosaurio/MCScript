@@ -6,7 +6,7 @@
 
 module.exports = function more (ctx, h) {
   const { server, config, text, CommandError } = ctx
-  const { find, findRecord, rankOf, checkHigher, actorName } = h
+  const { find, findRecord, rankOf, checkHigher, actorName, onlineFor, nameOf } = h
   const ranks = server.ranks
 
   // warnings: the third one kicks
@@ -16,22 +16,26 @@ module.exports = function more (ctx, h) {
     category: 'moderation',
     rank: 'Operator',
     usage: '/warn <player> [reason]',
-    description: 'Warns a player. On the third warning they are kicked',
+    description: 'Warns a player, online or not. On the third warning they are kicked',
     run (player, args, { usage }) {
       if (!args[0]) return usage()
-      const target = find(player, args[0])
-      checkHigher(player, target.record)
+      const record = findRecord(args[0])
+      checkHigher(player, record)
+      const target = onlineFor(record)
       const reason = args.slice(1).join(' ') || 'no reason given'
-      const warnings = (target.record.warnings || []).filter(w => Date.now() - w.at < 86400000)
-      warnings.push({ by: actorName(player), reason, at: Date.now() })
-      target.record.warnings = warnings
-      server.playerDB.save()
-      server.broadcast(`&e${target.coloredName}&e was warned by ${player.coloredName}&e: &f${reason} &7(${warnings.length}/3)`)
-      target.message(`&cYou have been warned: ${reason}`, 'announce')
+      // warnings count for a day
+      const warnings = (record.warnings || []).filter(w => Date.now() - w.at < 86400000)
+      // someone offline reads it when they come back
+      warnings.push({ by: actorName(player), reason, at: Date.now(), ...(target ? {} : { unseen: true }) })
+      record.warnings = warnings
+      server.broadcast(`&e${nameOf(record)}&e was warned by ${player.coloredName}&e: &f${reason} &7(${warnings.length}/3)${target ? '' : ' (offline)'}`)
+      if (target) target.message(`&cYou have been warned: ${reason}`, 'announce')
       if (warnings.length >= 3) {
-        target.record.warnings = []
-        target.kick(`Warned 3 times: ${reason}`)
+        record.warnings = []
+        if (target) target.kick(`Warned 3 times: ${reason}`)
+        else record.kickOnJoin = `Warned 3 times: ${reason}`
       }
+      server.playerDB.save()
     }
   })
 
@@ -182,7 +186,7 @@ module.exports = function more (ctx, h) {
   ctx.on('playerChat', (ev) => {
     if (!moderated) return
     const p = ev.player
-    if (p.data.voice || p.permission >= ranks.permissionOf('Operator')) return
+    if ((p.record && p.record.voice) || p.permission >= ranks.permissionOf('Operator')) return
     ev.cancel('&cChat is moderated right now. Ask the staff for a voice.')
   }, { priority: 'critical' })
 
@@ -203,12 +207,13 @@ module.exports = function more (ctx, h) {
     category: 'moderation',
     rank: 'Operator',
     usage: '/voice <player>',
-    description: 'Lets a player talk while chat is moderated (toggle)',
+    description: 'Lets a player talk while chat is moderated (toggle, kept when they leave)',
     run (player, args, { usage }) {
       if (!args[0]) return usage()
-      const target = find(player, args[0])
-      target.data.voice = !target.data.voice
-      server.broadcast(`&e${target.coloredName}&e ${target.data.voice ? 'got a voice' : 'lost their voice'}.`)
+      const record = findRecord(args[0])
+      record.voice = !record.voice
+      server.playerDB.save()
+      server.broadcast(`&e${nameOf(record)}&e ${record.voice ? 'got a voice' : 'lost their voice'}.`)
     }
   })
 

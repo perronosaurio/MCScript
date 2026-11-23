@@ -1,6 +1,6 @@
 {
   "name": "mcscript",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "A ClassiCube (Minecraft Classic + CPE) server written in JavaScript, with plugins",
   "main": "lib/index.js",
   "author": "perronosaurio",

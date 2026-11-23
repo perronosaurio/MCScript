@@ -43,6 +43,9 @@ module.exports = {
       return r
     }
     const rankOf = record => ranks.get(record.rank) || ranks.default
+    // the online player for a record (null if they are offline), and how to show their name either way
+    const onlineFor = record => server.findPlayerExact(record.name)
+    const nameOf = record => { const p = onlineFor(record); return p ? p.coloredName : `${rankOf(record).color || '&f'}${record.name}` }
     const checkHigher = (player, record) => {
       if (player.isConsole) return
       if (record.name.toLowerCase() === player.name.toLowerCase()) throw new CommandError('You can\'t do that to yourself.')
@@ -265,13 +268,14 @@ module.exports = {
       description: 'Prevents a player from chatting (default 1 hour)',
       run (player, args, { usage }) {
         if (!args[0]) return usage()
-        const target = find(player, args.shift())
-        checkHigher(player, target.record)
+        // offline players can be muted too: it applies when they come back
+        const record = findRecord(args.shift())
+        checkHigher(player, record)
         const duration = takeDuration(args) || 3600000
-        target.record.muteUntil = Date.now() + duration
-        target.record.muteReason = args.join(' ') || null
+        record.muteUntil = Date.now() + duration
+        record.muteReason = args.join(' ') || null
         server.playerDB.save()
-        server.broadcast(`&e${target.coloredName}&e was muted for ${text.formatDuration(duration)}.`)
+        server.broadcast(`&e${nameOf(record)}&e was muted for ${text.formatDuration(duration)}.${onlineFor(record) ? '' : ' &7(offline)'}`)
       }
     })
 
@@ -296,15 +300,39 @@ module.exports = {
       category: 'moderation',
       rank: 'Operator',
       usage: '/freeze <player>',
-      description: 'Stops a player from moving (toggle)',
+      description: 'Stops a player from moving (toggle). It lasts until /freeze again, even if they leave',
       run (player, args, { usage }) {
         if (!args[0]) return usage()
-        const target = find(player, args[0])
-        checkHigher(player, target.record)
-        target.frozen = !target.frozen
-        server.broadcast(`&e${target.coloredName}&e was ${target.frozen ? 'frozen' : 'unfrozen'} by ${player.coloredName}&e.`)
+        const record = findRecord(args[0])
+        checkHigher(player, record)
+        record.frozen = !record.frozen
+        server.playerDB.save()
+        const target = onlineFor(record)
+        if (target) target.frozen = record.frozen
+        server.broadcast(`&e${nameOf(record)}&e was ${record.frozen ? 'frozen' : 'unfrozen'} by ${player.coloredName}&e.${target ? '' : ' &7(offline)'}`)
       }
     })
+
+    // what was done to a player while they were away
+    ctx.on('playerJoin', ({ player }) => {
+      const r = player.record
+      if (!r) return
+      if (r.frozen) player.frozen = true
+      if (r.kickOnJoin) {
+        const reason = r.kickOnJoin
+        r.kickOnJoin = null
+        server.playerDB.save()
+        return player.kick(reason)
+      }
+      const unseen = (r.warnings || []).filter(w => w.unseen)
+      if (unseen.length) {
+        for (const w of unseen) { player.message(`&cYou were warned by ${w.by} while you were away: &f${w.reason}`); delete w.unseen }
+        player.message(`&cYou have ${r.warnings.length}/3 warnings. The third one kicks you.`)
+        server.playerDB.save()
+      }
+      if (r.frozen) player.message('&cYou are frozen. A staff member has to /freeze you again.')
+      if (r.muteUntil && r.muteUntil > Date.now()) player.message(`&cYou are muted for another ${text.formatDuration(r.muteUntil - Date.now())}.`)
+    }, { priority: 'monitor' })
 
     ctx.command({
       name: 'vanish',
@@ -333,7 +361,7 @@ module.exports = {
       }
     })
 
-    require('./more')(ctx, { find, findRecord, rankOf, checkHigher, actorName })
+    require('./more')(ctx, { find, findRecord, rankOf, checkHigher, actorName, onlineFor, nameOf })
     require('./alts')(ctx, { findRecord })
 
     // anti-spam
