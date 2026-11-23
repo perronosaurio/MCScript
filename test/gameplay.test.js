@@ -284,3 +284,47 @@ test('TNT Wars puts the arena back exactly, even with physics running', async (t
   await sleep(2000)
   assert.ok(Buffer.from(level.blocks).equals(before), 'and nothing left over from the game changes it afterwards')
 })
+
+test('warn, mute, freeze and voice work on offline players and apply when they come back', async (t) => {
+  const { server } = await startServer({ owners: ['Boss'] })
+  t.after(() => server.stop())
+  const boss = await join(server, 'Boss')
+  const bob = await join(server, 'Bob')
+  bob.close()
+  await sleep(200)
+  assert.ok(!server.findPlayerExact('Bob'))
+
+  assert.match(await command(boss, '/warn Bob griefing'), /Bob&e was warned by .*griefing.*1\/3\) \(offline\)/)
+  assert.match(await command(boss, '/mute Bob 10m spam'), /Bob&e was muted for 10m.*offline/)
+  assert.match(await command(boss, '/freeze Bob'), /Bob&e was frozen by .*offline/)
+  assert.match(await command(boss, '/voice Bob'), /Bob&e got a voice/)
+  const record = server.playerDB.find('Bob')
+  assert.equal(record.warnings.length, 1)
+  assert.ok(record.muteUntil > Date.now())
+  assert.equal(record.frozen, true)
+  assert.equal(record.voice, true)
+
+  // back online: told about the warning, still frozen and muted
+  const again = await join(server, 'Bob')
+  await sleep(200)
+  const said = again.received.filter(p => p.name === 'message').map(p => p.message).join('\n')
+  assert.match(said, /warned by Boss while you were away: &fgriefing/)
+  assert.match(said, /You are frozen/)
+  assert.match(said, /You are muted for another/)
+  assert.equal(server.findPlayerExact('Bob').frozen, true)
+  assert.ok(!record.warnings[0].unseen, 'only told once')
+  // unfreezing works whether they are online or not
+  assert.match(await command(boss, '/freeze Bob'), /unfrozen/)
+  assert.equal(server.findPlayerExact('Bob').frozen, false)
+  again.close()
+  await sleep(200)
+
+  // a third warning while offline kicks them when they come back
+  await command(boss, '/warn Bob two')
+  assert.match(await command(boss, '/warn Bob three'), /3\/3/)
+  const last = new TestClient({ port: server.port, name: 'Bob' })
+  await last.connect()
+  await last.waitFor(p => p.name === 'disconnect')
+  assert.match(last.kickReason || '', /Warned 3 times: three/)
+  assert.equal(server.playerDB.find('Bob').kickOnJoin, null)
+})
