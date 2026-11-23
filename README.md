@@ -151,6 +151,15 @@ backup, copy `config/`, `levels/` and `data/` while the server is stopped, or ri
 
 ## Updating
 
+**Automatic updates:** set `"autoUpdate": true` in `config/server.json`. Each time the server starts it looks for
+a new release on GitHub and installs it first, and while it runs it checks every few hours and restarts to
+update as soon as nobody is online. Only MCScript's own files are replaced (`lib/`, the bundled plugins,
+`docs/`, `index.js`...); `config/`, `levels/`, `data/`, `texpacks/` and plugins you added are never touched,
+and the version it replaced is kept in `backups/mcscript-<version>/`. Owners can also type `/update` to see
+if there is a new version and `/update now` to install it right away. This works on Pterodactyl too.
+
+With git:
+
 ```bash
 git pull
 npm install
@@ -217,6 +226,7 @@ anti-grief.
 | economy | `/money /pay /baltop /eco /give /take /shop /buy` |
 | minigames | `/parkour /tntwars /ctf /zombie` |
 | effects | `/effect /cinematic /blocklist /explode /slap` |
+| extras | `/tour` (a guided flight through stops you save with `/tour add`), plus an optional HUD, ambient particles, and bounce and effect pads |
 | custom-models | `/cmodel` (example 3D models plus your own JSON ones, used with `/model`) |
 | announcer | `/announcer` |
 | relay-irc | IRC chat bridge (off by default) |
@@ -224,7 +234,7 @@ anti-grief.
 | web-panel | admin panel in the browser (off by default) |
 | example | a commented example plugin |
 
-Core commands: `/help /plugins /plugin /penable /pdisable /pload /punload /preload /pcreate /pinstall /puninstall /cmdset /blockset /abort /stop /restart`.
+Core commands: `/help /plugins /plugin /penable /pdisable /pload /punload /preload /pcreate /pinstall /puninstall /cmdset /blockset /abort /stop /restart /update`.
 
 Everything in this table can be turned off: use `/pdisable <plugin>` (and `/penable` to bring it back), the
 switches in the web panel, or `disabledPlugins` in `config/server.json`. The choice survives restarts.
@@ -237,13 +247,17 @@ An operator turns a level into an arena, and players join with `/<game> join`.
 
 - Parkour: `/parkour setstart`, `/parkour addcheckpoint`, `/parkour setfinish` (mark the blocks you stand on).
   Timer, checkpoints and records with `/parkour top`.
-- TNT Wars: `/tntwars enable`, `/tntwars setspawn red|blue`. Right click to drop TNT. The first team to reach
-  the score limit wins.
+- TNT Wars: `/tntwars enable`, `/tntwars setspawn red|blue`. During a game TNT is the only block in your
+  inventory, as in MCGalaxy: place it (right click) and it explodes a few seconds later. Blowing up players
+  of the other team scores; the first team to reach the score limit wins.
 - Capture the Flag: `/ctf enable`, `/ctf setflag red|blue`, `/ctf setspawn red|blue`. Bring the other team's
   flag home; click an enemy to tag them.
-- Zombie Survival: `/zombie enable`. One player starts as a zombie and infects others by touching them.
+- Zombie Survival: `/zombie enable`. One player starts as a zombie and infects others by touching them. The
+  humans get a head start (`graceSeconds`) before the first infection.
 
-The arena is restored after each round, and with the economy plugin the winners get coins.
+When a round ends the arena is restored, everyone goes back to the spawn, and the next round starts by itself
+after a short break (`autoRestart`, `intermissionSeconds` in `config/plugins/minigames.json`; `/<game> leave`
+to stop playing). With the economy plugin the winners get coins.
 
 ### Web panel
 

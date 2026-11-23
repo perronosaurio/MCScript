@@ -13,9 +13,11 @@ module.exports = {
   defaultConfig: {
     reward: 50, // coins for the winners (needs the economy plugin)
     parkourReward: 25,
+    autoRestart: true, // start the next round on its own with the same players
+    intermissionSeconds: 10,
     tntwars: { scoreLimit: 10, radius: 3, timeLimitMinutes: 10 },
     ctf: { captures: 3, timeLimitMinutes: 10, tagDistance: 4 },
-    zombie: { minutes: 5, touchDistance: 1.2 }
+    zombie: { minutes: 5, touchDistance: 1.2, graceSeconds: 10 }
   },
 
   load (ctx) {

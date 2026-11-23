@@ -58,7 +58,13 @@ test('Discord bot: chat bridge, staff channel and commands', async (t) => {
   const posted = []
   const realFetch = globalThis.fetch
   const realWebSocket = globalThis.WebSocket
+  let askedGateway = false
   globalThis.fetch = async (url, opts) => {
+    if (String(url) === 'https://discord.com/api/v10/gateway/bot') {
+      assert.equal(opts.headers.Authorization, 'Bot secret-token')
+      askedGateway = true
+      return new Response(JSON.stringify({ url: 'wss://gateway.example', shards: 1 }), { status: 200 })
+    }
     const m = String(url).match(/^https:\/\/discord\.com\/api\/v10\/channels\/(\d+)\/messages$/)
     if (!m) return realFetch(url, opts)
     assert.equal(opts.headers.Authorization, 'Bot secret-token')
@@ -86,7 +92,12 @@ test('Discord bot: chat bridge, staff channel and commands', async (t) => {
   const identify = FakeGateway.last.sent.find(m => m.op === 2)
   assert.equal(identify.d.token, 'secret-token')
   assert.equal(identify.d.intents, (1 << 0) | (1 << 9) | (1 << 15))
-  assert.equal(identify.d.presence.activities[0].name, 'with 0/20 players')
+  // the gateway address comes from GET /gateway/bot, and the status is a custom status (activity type 4)
+  assert.ok(askedGateway)
+  assert.equal(FakeGateway.last.url, 'wss://gateway.example/?v=10&encoding=json')
+  assert.deepEqual(identify.d.presence.activities, [{ type: 4, name: 'Custom Status', state: '0/20 players online' }])
+  assert.equal(identify.d.presence.status, 'online')
+  assert.deepEqual(identify.d.properties, { os: process.platform, browser: 'mcscript', device: 'mcscript' })
 
   const boss = await join(server, 'Boss')
   const alice = await join(server, 'Alice')

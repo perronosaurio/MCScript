@@ -12,6 +12,9 @@ module.exports = {
 
   defaultConfig: {
     autoAfkMinutes: 5,
+    // like MCGalaxy: players idle this long are kicked (0 = never), except from afkKickExemptRank up
+    afkKickMinutes: 45,
+    afkKickExemptRank: 'Operator',
     allowedModels: ['humanoid', 'chicken', 'creeper', 'pig', 'sheep', 'skeleton', 'spider', 'zombie', 'sit', 'head', 'chibi', 'giant', 'corpse', 'sheep_nofur', 'block'],
     modelRank: 'Guest',
     anyModelRank: 'Operator'
@@ -494,12 +497,21 @@ module.exports = {
     }, { priority: 'monitor' })
     ctx.on('playerCommand', ({ player, label }) => { if (label !== 'afk' && !player.isConsole) setAfk(player, false) }, { priority: 'monitor' })
 
-    if (config.autoAfkMinutes > 0) {
-      ctx.setInterval(() => {
-        const limit = Date.now() - config.autoAfkMinutes * 60000
+    ctx.setInterval(() => {
+      const now = Date.now()
+      if (config.autoAfkMinutes > 0) {
+        const limit = now - config.autoAfkMinutes * 60000
         for (const p of server.online) if (!isAfk(p) && p.lastActivity < limit) setAfk(p, true, 'auto')
-      }, 15000)
-    }
+      }
+      if (config.afkKickMinutes > 0) {
+        const exempt = server.ranks.get(config.afkKickExemptRank)
+        const limit = now - config.afkKickMinutes * 60000
+        for (const p of server.online) {
+          if (exempt && p.permission >= exempt.permission) continue
+          if (p.lastActivity < limit) p.kick(`Auto-kicked for being AFK for ${config.afkKickMinutes} minutes`)
+        }
+      }
+    }, 15000)
 
     require('./more')(ctx, { find })
     require('./social')(ctx)

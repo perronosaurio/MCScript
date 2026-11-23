@@ -19,10 +19,13 @@ const FATAL = {
 // Minimal Discord gateway client: identify, heartbeat, resume and presence. Emits 'ready', 'message' (MESSAGE_CREATE data),
 // 'fatal' (reason) and 'log' (level, text).
 class Gateway extends EventEmitter {
-  constructor ({ token, url = GATEWAY, WebSocketImpl = globalThis.WebSocket, presence = null }) {
+  constructor ({ token, url = null, WebSocketImpl = globalThis.WebSocket, presence = null, fetch = null }) {
     super()
     this.token = token
+    // Discord asks apps to get the gateway address from GET /gateway/bot and cache it; without a fetch
+    // function (or if that fails) the documented default address is used
     this.url = url
+    this.fetch = fetch
     this.WebSocket = WebSocketImpl
     this.presence = presence
     this.ws = null
@@ -36,8 +39,34 @@ class Gateway extends EventEmitter {
     this.retryDelay = 5000
   }
 
+  async _gatewayUrl () {
+    if (this.url) return this.url
+    if (this.fetch) {
+      try {
+        const res = await this.fetch('https://discord.com/api/v10/gateway/bot', { headers: { Authorization: `Bot ${this.token}` } })
+        if (res.status === 401) {
+          this.stopped = true
+          this.emit('fatal', `Discord closed the connection: ${FATAL[4004]} (code 4004)`)
+          return null
+        }
+        const body = res.ok ? await res.json() : null
+        if (body && typeof body.url === 'string' && body.url.startsWith('wss://')) {
+          this.url = `${body.url}/?v=10&encoding=json`
+          return this.url
+        }
+      } catch (err) {
+        this.emit('log', 'debug', `Could not get the Discord gateway address: ${err.message}`)
+      }
+    }
+    return GATEWAY
+  }
+
   connect (resume = false) {
     if (this.stopped) return
+    if (!(resume && this.resumeUrl) && !this.url) {
+      this._gatewayUrl().then(url => { if (url) { this.url = this.url || url; this.connect(resume) } })
+      return
+    }
     const url = resume && this.resumeUrl ? `${this.resumeUrl}/?v=10&encoding=json` : this.url
     let ws
     try {
@@ -143,6 +172,8 @@ class Gateway extends EventEmitter {
       this.stopped = true
       return this.emit('fatal', `Discord closed the connection: ${FATAL[code]} (code ${code})`)
     }
+    // invalid sequence or a timed out session can't be resumed: start a new one
+    if (code === 4007 || code === 4009) { this.sessionId = null; this.seq = null; this.resumeUrl = null }
     this.emit('log', 'warn', `Discord connection closed (code ${code}), reconnecting in ${this.retryDelay / 1000}s`)
     later(() => this.connect(!!this.sessionId), this.retryDelay)
     this.retryDelay = Math.min(this.retryDelay * 2, 120000)

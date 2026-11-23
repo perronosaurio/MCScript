@@ -36,7 +36,12 @@ module.exports = {
     useNicknames: true,
     relayJoins: true,
     relayStaffChat: true,
-    status: 'with {players}/{max} players',
+    // the bot's status under its name. {players}, {max} and {server} are filled in. Empty to show none
+    status: '{players}/{max} players online',
+    // custom (just the text), playing, listening, watching or competing ("Playing <status>"...)
+    statusType: 'custom',
+    // online, idle or dnd (do not disturb)
+    onlineStatus: 'online',
     inviteUrl: '',
     discordPrefix: '&9[Discord] ',
     webhookUrl: ''
@@ -60,6 +65,8 @@ module.exports = {
       log.info('Disabled. Edit config/plugins/relay-discord.json to enable it.')
       return
     }
+    // the old default read "Playing with 3/20 players"; as a custom status it would read oddly
+    if (config.status === 'with {players}/{max} players') config.status = '{players}/{max} players online'
     // 1.x config had a single channelId
     const chatChannels = [...new Set([...(config.chatChannelIds || []), config.channelId].filter(Boolean).map(String))]
     const staffChannels = (config.staffChannelIds || []).map(String)
@@ -148,15 +155,25 @@ module.exports = {
       return
     }
 
-    const presence = () => ({
-      since: null,
-      afk: false,
-      status: 'online',
-      activities: config.status
-        ? [{ type: 0, name: config.status.replace('{players}', server.online.filter(p => !p.hidden).length).replace('{max}', server.config.maxPlayers) }]
-        : []
-    })
-    const gateway = new Gateway({ token: config.botToken, presence: presence() })
+    // Gateway presence (opcode 3). Bots may set name, state, type and url on an activity; a custom status
+    // (type 4) shows `state` on its own, without "Playing" in front
+    const ACTIVITY_TYPES = { playing: 0, listening: 2, watching: 3, custom: 4, competing: 5 }
+    const presence = () => {
+      const textOf = String(config.status || '')
+        .replace(/\{players\}/g, server.online.filter(p => !p.hidden).length)
+        .replace(/\{max\}/g, server.config.maxPlayers)
+        .replace(/\{server\}/g, text.stripColors(server.config.name))
+        .slice(0, 128)
+      const type = ACTIVITY_TYPES[String(config.statusType || 'custom').toLowerCase()] ?? 4
+      const activity = type === 4 ? { type, name: 'Custom Status', state: textOf } : { type, name: textOf }
+      return {
+        since: null,
+        afk: false,
+        status: ['online', 'idle', 'dnd', 'invisible'].includes(config.onlineStatus) ? config.onlineStatus : 'online',
+        activities: textOf ? [activity] : []
+      }
+    }
+    const gateway = new Gateway({ token: config.botToken, presence: presence(), fetch: (url, opts) => globalThis.fetch(url, opts) })
     gateway.on('ready', user => log.info(`Connected to Discord as ${user.username}`))
     gateway.on('fatal', reason => log.error(reason))
     gateway.on('log', (level, msg) => log[level](msg))

@@ -452,7 +452,7 @@ test('block history is kept on disk: /about and /undoplayer work after a restart
     admin.chat('/about')
     await admin.waitForMessage(/mark the position/)
     admin.send('setBlock', { x: p.x + 1, y: p.y, z: p.z, mode: 0, block: 0 })
-    await admin.waitForMessage(/Last changed by &fGriefer/)
+    await admin.waitForMessage(/ago &fGriefer&7: .* -> Brick/)
     assert.match(await command(admin, '/undoplayer Griefer 1h', 300), /Undid &f2&e block changes by Griefer/)
     assert.equal(lvl.getBlock(p.x + 1, p.y, p.z), 0)
     assert.equal(lvl.getBlock(p.x + 1, p.y - 1, p.z), before)
@@ -522,7 +522,7 @@ test('web panel: token auth, status, players and commands', async (t) => {
 const moveTo = (client, x, y, z) => client.send('position', { heldBlock: 1, x: Math.round(x * 32), y: Math.round(y * 32) + 51, z: Math.round(z * 32), yaw: 0, pitch: 0 })
 
 test('minigames: zombie survival infection and parkour timing', async (t) => {
-  const { server } = await startServer({ owners: ['Op'] })
+  const { server } = await startServer({ owners: ['Op'] }, null, { minigames: { zombie: { graceSeconds: 0 }, autoRestart: false } })
   t.after(() => server.stop())
   const op = await join(server, 'Op')
   const guest = await join(server, 'Guest')

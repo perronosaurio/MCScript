@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.3.0 (2026-11-23)
+
+### Added
+- Automatic updates: with `"autoUpdate": true` the server installs new releases from GitHub before it starts,
+  and while running it restarts to update as soon as nobody is online. Only MCScript's own files change; the
+  replaced version is kept in `backups/mcscript-<version>/`. `/update` and `/update now` for owners.
+- `extras` plugin: `/tour` (now with `/tour add`, `remove`, `list`, `clear` to make your own), and optional
+  HUD, ambient particles, bounce pads and effect pads.
+- AFK kick like MCGalaxy: players idle for `afkKickMinutes` (45) are kicked, except from `afkKickExemptRank`
+  (Operator) up. Set in `config/plugins/core-essentials.json`.
+- TNT Wars gives players a TNT-only inventory during the game (block list, hotbar and held block), and gives
+  everything back afterwards.
+- Minigame rounds start again by themselves after `intermissionSeconds`, with everyone back at the spawn.
+- Zombie Survival gives the humans a head start (`graceSeconds`, 10 by default).
+- `/about` lists the last changes of a block, and for water or lava that flowed there it shows who placed it
+  nearby.
+- Discord: `statusType` and `onlineStatus`.
+
+### Fixed
+- Big drawings (or a restored arena) no longer freeze, crash or disconnect clients: past `drawReloadThreshold`
+  the level is sent again, compressed, instead of thousands of block updates.
+- Standing still never counted as idle (clients send their position all the time), so nobody went AFK.
+- Clients that crashed or froze stayed online forever. They are disconnected after `timeoutSeconds` (60).
+- `/kick` and other commands also find players by their nickname.
+- `/about` only knew changes made since the server started (and only the last 300,000 per level). It now reads
+  the history on disk, which has changes from commands as well as by hand.
+- Selections (`/cuboid`, `/about`, `/zone`...) can be marked with right click too, even holding a block you
+  can't place or in a level you can't build in.
+- Capture the Flag restores the arena with its flags in place; the flags were missing between rounds.
+- Zombie Survival sent everyone to the spawn when a round started, so all of them got infected at once.
+- `/tour` (`extras`) turns flying and noclip on for the flight, so the camera no longer falls between stops.
+  Games and the tour give back the hacks the level allows (`-hax` in its MOTD) instead of allowing all.
+- Discord bot: the status uses Discord's custom status (activity type 4) instead of "Playing ...", the
+  gateway address comes from `GET /gateway/bot`, and sessions that can't be resumed (4007, 4009) start over.
+
 ## 2.2.1 (2026-10-06)
 
 ### Fixed

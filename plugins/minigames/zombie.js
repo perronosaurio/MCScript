@@ -8,7 +8,7 @@ const gameCommand = require('./game-command')
 
 module.exports = function zombie (ctx) {
   const { server } = ctx
-  const settings = () => ({ minutes: 5, touchDistance: 1.2, ...ctx.config.zombie })
+  const settings = () => ({ minutes: 5, touchDistance: 1.2, graceSeconds: 10, ...ctx.config.zombie })
 
   const game = gameCommand(ctx, {
     name: 'zombie',
@@ -17,6 +17,7 @@ module.exports = function zombie (ctx) {
     metaKey: 'zombie',
     createRound (level) {
       let endsAt = 0
+      let infectFrom = 0 // nobody is infected before this (a head start for the humans)
       let firstZombies = []
       const round = new Round(ctx, {
         id: 'zombie',
@@ -34,8 +35,16 @@ module.exports = function zombie (ctx) {
             infect(pick, null)
             firstZombies.push(pick)
           }
+          // only the first zombies go back to the spawn; the humans stay where they are and get a head start
           const s = level.spawn
-          for (const p of round.players) p.teleport(s.x, s.y, s.z)
+          for (const z of firstZombies) z.teleport(s.x, s.y, s.z, s.yaw, s.pitch)
+          const grace = Math.max(0, Number(settings().graceSeconds) || 0)
+          infectFrom = Date.now() + grace * 1000
+          endsAt += grace * 1000
+          if (grace) {
+            round.broadcast(`&eThe zombie${firstZombies.length > 1 ? 's are' : ' is'} &f${firstZombies.map(p => p.name).join(', ')}&e. Run! Infection starts in &f${grace}&e seconds.`)
+            round.later(() => { if (round.running) round.broadcast('&cThe zombies can infect now!', 'announce') }, grace * 1000)
+          }
           round.repeat(tick, 150)
           round.repeat(() => {
             const humans = [...round.players].filter(p => p.data.team === 'human').length
@@ -66,7 +75,7 @@ module.exports = function zombie (ctx) {
       }
 
       function tick () {
-        if (!round.running) return
+        if (!round.running || Date.now() < infectFrom) return
         const zombies = [...round.players].filter(p => p.data.team === 'zombie')
         for (const human of [...round.players].filter(p => p.data.team === 'human')) {
           const z = zombies.find(z => distance(z.pos, human.pos) < settings().touchDistance)

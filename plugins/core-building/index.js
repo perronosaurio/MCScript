@@ -9,6 +9,7 @@ const font = require('./font')
 
 const MAX_UNDO_OPS = 30
 const HISTORY_PER_LEVEL = 300000
+const LIQUIDS = [[8, 9], [10, 11]] // water, lava (flowing and still)
 
 module.exports = {
   name: 'core-building',
@@ -544,12 +545,29 @@ module.exports = {
         const level = player.level
         const id = level.getBlock(x, y, z)
         player.message(`&eBlock (${x}, ${y}, ${z}): &f${level.blockName(id)}&7 (id ${id})`)
-        const h = history.get(level.name)
-        const entry = h && h.get(level.index(x, y, z))
-        if (entry) {
-          player.message(`&7  Last changed by &f${entry.name}&7 ${ctx.text.formatDuration(Date.now() - entry.time)} ago: ${level.blockName(entry.from)} -> ${level.blockName(entry.to)}`)
-        } else {
-          player.message('&7  No changes recorded since the server started.')
+        // the log on disk has every change, from building and from commands, and survives restarts
+        const index = level.index(x, y, z)
+        const ago = t => ctx.text.formatDuration(Math.max(0, Date.now() - t))
+        const changes = log.find(level.name, i => i === index, 6)
+        for (const r of changes) {
+          player.message(`&7  ${ago(r.time)} ago &f${r.name}&7: ${level.blockName(r.from)} -> ${level.blockName(r.to)}`)
+        }
+        if (!changes.length) player.message('&7  Nobody has changed this block.')
+        // water and lava that flowed here weren't placed by anyone: show who placed that liquid nearby
+        const liquid = LIQUIDS.find(set => set.includes(id))
+        if (liquid && (!changes.length || !liquid.includes(changes[0].to))) {
+          const near = log.find(level.name, (i, to) => {
+            if (!liquid.includes(to)) return false
+            const p = level.unpack(i)
+            return Math.abs(p.x - x) <= 48 && Math.abs(p.z - z) <= 48 && p.y >= y - 4
+          }, 5)
+          if (near.length) {
+            player.message(`&e  This ${level.blockName(id)} flowed here. ${level.blockName(id)} placed nearby:`)
+            for (const r of near) {
+              const p = level.unpack(r.index)
+              player.message(`&7  ${ago(r.time)} ago &f${r.name}&7 at (${p.x}, ${p.y}, ${p.z})`)
+            }
+          }
         }
       }
     })
