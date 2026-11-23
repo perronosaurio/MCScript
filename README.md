@@ -193,7 +193,12 @@ Levels
 - Autosave, periodic backups with `/restore`. Deleted levels go to `levels/deleted`.
 - Per level: sky, fog, cloud and light colors, texture pack, weather, edge blocks, water level, MOTD hack flags
   (`-hax +fly`), build and visit ranks, owners, physics and lockdown.
-- Block history is written to disk, so `/about` and `/undoplayer` still work after a restart.
+- Block history is written to disk, so `/about` and `/undoplayer` still work after a restart. Changes made with
+  commands are in it too, and `/about` on water or lava that flowed somewhere shows who placed it nearby.
+- Big drawings don't freeze clients: past `drawReloadThreshold` players get the level again, compressed,
+  instead of thousands of block updates (as in MCGalaxy).
+- Selections (`/cuboid`, `/about`, `/zone`...) are marked by breaking or placing a block, or with any left or
+  right click on a block.
 
 Texture packs: put a `.zip` in `texpacks/` and `/texture mypack.zip` serves it to players from the server itself,
 on the game port. No web host needed (set `publicAddress` to your domain or IP).
@@ -207,7 +212,14 @@ ladder, carpet, slabs, speed pad and more.
 
 Players and moderation: numeric rank permissions, draw and undo limits per rank, temporary and IP bans, mutes,
 warnings, temporary ranks, reports, whitelist, moderated chat, staff chats, freeze, vanish, anti-spam and
-anti-grief.
+anti-grief. Idle players are marked AFK and kicked after 45 minutes like in MCGalaxy (`afkKickMinutes` in
+`config/plugins/core-essentials.json`), and clients that crashed or froze are dropped after `timeoutSeconds`.
+
+Updates: with `"autoUpdate": true` the server installs new MCScript releases by itself (see
+[Updating](#updating)).
+
+Discord: the bot shows the player count as its status under its name (Discord's custom status) and links chat,
+staff chat and `!commands` ([guide](docs/DISCORD.md)).
 
 ## Bundled plugins
 
