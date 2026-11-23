@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.1 (2026-11-23)
+
+### Fixed
+- Automatic updates no longer depend on GitHub's API limit (60 requests an hour per IP, easy to use up on a
+  shared host): when the API refuses, the latest release is read from the release page instead.
+
 ## 2.3.0 (2026-11-23)
 
 ### Added
