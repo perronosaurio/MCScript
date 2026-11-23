@@ -60,7 +60,9 @@ Then run `/preload relay-discord` (or restart). The console shows `Connected to 
 | `useNicknames` | `true` | Show server nicknames instead of Discord usernames |
 | `relayJoins` | `true` | Post joins and leaves |
 | `relayStaffChat` | `true` | Post the in-game staff chat to the staff channels |
-| `status` | `with {players}/{max} players` | The bot's "Playing ..." status. Empty to turn it off |
+| `status` | `{players}/{max} players online` | The text under the bot's name. `{players}`, `{max}` and `{server}` are filled in. Empty to show none |
+| `statusType` | `custom` | `custom` shows just the text (Discord's custom status); `playing`, `listening`, `watching` or `competing` put that word in front |
+| `onlineStatus` | `online` | `online`, `idle` or `dnd` |
 | `inviteUrl` | | Adds `/discord`, which shows this link in the game |
 | `discordPrefix` | `&9[Discord] ` | How Discord messages are shown in the game |
 | `webhookUrl` | | Sends chat through a webhook instead of a bot (one way only, no commands) |

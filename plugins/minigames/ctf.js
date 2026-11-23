@@ -49,7 +49,7 @@ module.exports = function ctf (ctx) {
         minPlayers: 2,
         onStart () {
           const flags = meta().flags || {}
-          if (!flags.red || !flags.blue) { round.end(null, 'The flags are not set up (/ctf setflag)'); return }
+          if (!flags.red || !flags.blue) { round.end(null, 'The flags are not set up (/ctf setflag)', { requeue: false }); return }
           score = { red: 0, blue: 0 }
           carriers = { red: null, blue: null }
           endsAt = Date.now() + settings().timeLimitMinutes * 60000

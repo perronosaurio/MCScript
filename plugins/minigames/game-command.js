@@ -29,8 +29,8 @@ module.exports = function gameCommand (ctx, { name, aliases = [], title, metaKey
 
   ctx.on('playerLeave', ({ player }) => { const r = roundOf(player); if (r) r.leave(player) })
   ctx.on('playerChangeLevel', ({ player, to }) => { const r = roundOf(player); if (r && r.level !== to) r.leave(player) }, { priority: 'monitor' })
-  ctx.on('levelUnload', ({ level }) => { const r = rounds.get(level.name); if (r) { r.end(null, 'Level unloaded'); rounds.delete(level.name) } }, { priority: 'monitor' })
-  ctx.onUnload(() => { for (const r of rounds.values()) r.end(null, 'Game stopped') })
+  ctx.on('levelUnload', ({ level }) => { const r = rounds.get(level.name); if (r) { r.end(null, 'Level unloaded', { requeue: false }); rounds.delete(level.name) } }, { priority: 'monitor' })
+  ctx.onUnload(() => { for (const r of rounds.values()) r.end(null, 'Game stopped', { requeue: false }) })
 
   ctx.command({
     name,
@@ -76,7 +76,7 @@ module.exports = function gameCommand (ctx, { name, aliases = [], title, metaKey
           return player.message(`&a${player.level.name} is now a ${title} arena. Players join with &f/${name} join`)
         case 'disable':
           needOp()
-          if (rounds.get(player.level.name)) rounds.get(player.level.name).end(null, 'Arena disabled')
+          if (rounds.get(player.level.name)) rounds.get(player.level.name).end(null, 'Arena disabled', { requeue: false })
           delete player.level.meta[metaKey]
           player.level.dirty = true
           arenas.delete(player.level.name)
@@ -85,6 +85,7 @@ module.exports = function gameCommand (ctx, { name, aliases = [], title, metaKey
         case 'start': {
           needOp()
           const r = rounds.get(player.level.name)
+          if (r) { for (const q of r.queued) if (!q.conn.closed && q.level === r.level) r.players.add(q); r.queued.clear() }
           if (!r || !r.players.size) throw new CommandError('Nobody has joined a game in this level.')
           if (r.running) throw new CommandError('The game is already running.')
           r.minPlayers = Math.min(r.minPlayers, r.players.size)
@@ -94,7 +95,7 @@ module.exports = function gameCommand (ctx, { name, aliases = [], title, metaKey
           needOp()
           const r = rounds.get(player.level.name)
           if (!r) throw new CommandError('No game in this level.')
-          return r.end(null, `Stopped by ${player.name}`)
+          return r.end(null, `Stopped by ${player.name}`, { requeue: false })
         }
         default:
           if (setup[sub]) {

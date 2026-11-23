@@ -1,6 +1,7 @@
 'use strict'
 
-const { createServer } = require('./lib')
+// With "autoUpdate": true in config/server.json a newer MCScript release is installed before starting
+const { updateBeforeStart } = require('./lib/updater')
 
 // Values used only the first time, to create config/server.json.
 // After that, edit config/server.json (or use environment variables / .env).
@@ -13,7 +14,7 @@ const initial = {
   owners: []
 }
 
-createServer({ initial, console: true }).then(server => {
+updateBeforeStart().then(() => require('./lib').createServer({ initial, console: true })).then(server => {
   const shutdown = () => server.stop().then(() => process.exit(0))
   process.on('SIGINT', shutdown)
   process.on('SIGTERM', shutdown)

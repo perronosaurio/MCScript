@@ -33,11 +33,14 @@ write its own copy over your changes on shutdown.
 | `backupMinutes` | `30` | How often changed levels are backed up. `0` turns backups off |
 | `backupsToKeep` | `10` | Backups kept per level |
 | `maxClickDistance` | `5` | Reach in blocks (`/reach` can change it per player) |
+| `drawReloadThreshold` | `0.001` | When one change touches more than this part of a level (and at least 256 blocks), players get the whole level again instead of thousands of block updates, which used to freeze or disconnect clients. `0` turns it off |
+| `timeoutSeconds` | `60` | Players whose client sends nothing for this long (crashed or frozen) are disconnected. `0` turns it off |
 | `chatColorsRank` | `Guest` | Lowest rank that can use `%` color codes in chat |
 | `disabledPlugins` | `[]` | Plugins that are not loaded at startup |
 | `customColors` | `{}` | Extra color codes, for example `{ "q": "#ff8800" }`. Managed with `/ccols` |
 | `database` | `json` | `json` or `sqlite`. See below |
 | `checkForUpdates` | `true` | Look for a newer MCScript release on GitHub at startup and say so in the console |
+| `autoUpdate` | `false` | Install new MCScript releases by itself: before starting, and while running as soon as nobody is online. Your config, levels, data, texture packs and own plugins are never touched; the replaced version goes to `backups/mcscript-<version>/`. The environment variable `MCSCRIPT_AUTO_UPDATE=1` also turns it on |
 | `logToFile` | `true` | Write logs to `logs/` |
 | `debug` | `false` | Extra log output |
 

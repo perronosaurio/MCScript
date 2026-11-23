@@ -101,6 +101,16 @@ class BlockLog {
     return out
   }
 
+  // Newest records whose index passes `test(index, to)`, newest first. Reads the whole log, so keep it for commands.
+  find (level, test, max = 10) {
+    const buf = this._all(level)
+    const out = []
+    for (let o = buf.length - RECORD; o >= 0 && out.length < max; o -= RECORD) {
+      if (test(buf.readUInt32LE(o), buf.readUInt16LE(o + 6))) out.push(this._decode(buf, o))
+    }
+    return out
+  }
+
   // Records matching a filter, newest first
   search (level, { name = null, since = 0 } = {}) {
     const buf = this._all(level)

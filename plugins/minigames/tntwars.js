@@ -57,9 +57,12 @@ module.exports = function tntwars (ctx) {
 
       function setup (p) {
         const t = teamOf(p)
-        p.message(`&eYou are in the ${t.color}${t.name}&e team! Right click blocks to drop TNT.`)
+        p.message(`&eYou are in the ${t.color}${t.name}&e team!`)
+        p.message(`&ePlace TNT (right click) anywhere: it explodes after ${FUSE_MS / 1000} seconds. Blow up the other team, ${settings().scoreLimit} points wins.`)
+        p.message('&cTNT &7- right click to drop it', 'bottom1')
         spawnAt(p, (meta().spawns || {})[p.data.team], level)
-        p.holdBlock(TNT, false)
+        // like MCGalaxy: TNT is the only block in the inventory during the game
+        p.setKit([TNT])
         server.tabList.update(p)
       }
 
