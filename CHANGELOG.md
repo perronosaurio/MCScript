@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.4 (2026-11-27)
+
+### Fixed
+- `/paste`, `/mirror`, `/spin` and the other drawing commands could place blocks your rank isn't allowed to
+  place (for example lava copied from somewhere else after `/blockset 10 place Admin`). Those blocks are now
+  left out, and the command says which ones.
+
 ## 2.3.3 (2026-11-23)
 
 ### Changed
