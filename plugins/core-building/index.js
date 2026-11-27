@@ -122,12 +122,15 @@ module.exports = {
       checkVolume(player, changes.length)
       const allowed = []
       const denied = new Set()
+      const notPlaceable = new Set()
       for (const c of changes) {
         const [x, y, z, block] = c
         if (!level.inBounds(x, y, z)) continue
         const old = level.getBlock(x, y, z)
         if (old === block) continue
         if (!server.blockPerms.canDelete(player, old)) { denied.add(old); continue }
+        // also for blocks that come from a copy (/paste, /mirror, /spin...), not only the one typed
+        if (block !== 0 && !server.blockPerms.canPlace(player, block)) { notPlaceable.add(block); continue }
         allowed.push(c)
       }
       const ev = server.events.fire('drawOperation', { player, level, changes: allowed, name: opName })
@@ -142,6 +145,7 @@ module.exports = {
       recordHistory(level, player.name, record)
       let msg = `&e${opName}: changed &f${record.length.toLocaleString()}&e block${record.length === 1 ? '' : 's'}.`
       if (denied.size) msg += ` &7(skipped blocks you can't delete: ${[...denied].map(b => level.blockName(b)).join(', ')})`
+      if (notPlaceable.size) msg += ` &7(skipped blocks you can't place: ${[...notPlaceable].map(b => level.blockName(b)).join(', ')})`
       player.message(msg)
       return record.length
     }
